@@ -1,0 +1,111 @@
+{
+    "id": "48eacc2f-8b03-4847-bc8f-338b9e6409cb",
+    "task_name": "owenliu/health-rumor-triage",
+    "trial_name": "health-rumor-triage__N52zaBA",
+    "trial_uri": "file:///Users/zhuowang/assignment2-evals/tasks/health-rumor-triage/artifacts/health-rumor-triage-gemini/health-rumor-triage__N52zaBA",
+    "task_id": {
+        "path": "tasks/health-rumor-triage"
+    },
+    "source": null,
+    "task_checksum": "00b477db2ab04cd7fe8ee424bdae4b284952de71bcaa7393d4447d383acb10f3",
+    "config": {
+        "task": {
+            "path": "tasks/health-rumor-triage",
+            "git_url": null,
+            "git_commit_id": null,
+            "name": null,
+            "ref": null,
+            "overwrite": false,
+            "download_dir": null,
+            "source": null
+        },
+        "trial_name": "health-rumor-triage__N52zaBA",
+        "trials_dir": "tasks/health-rumor-triage/artifacts/health-rumor-triage-gemini",
+        "install_only": false,
+        "timeout_multiplier": 1.0,
+        "agent_timeout_multiplier": null,
+        "verifier_timeout_multiplier": null,
+        "agent_setup_timeout_multiplier": null,
+        "environment_build_timeout_multiplier": null,
+        "agent": {
+            "name": null,
+            "import_path": "pinned_agent:MiniSweAgent",
+            "model_name": "gemini/gemini-3.8-flash",
+            "n_concurrent": null,
+            "concurrency_group": null,
+            "skills": [],
+            "override_timeout_sec": null,
+            "override_setup_timeout_sec": null,
+            "max_timeout_sec": null,
+            "extra_allowed_hosts": [],
+            "kwargs": {},
+            "mcp_servers": []
+        },
+        "environment": {
+            "type": "docker",
+            "import_path": null,
+            "force_build": false,
+            "delete": true,
+            "cpu_enforcement_policy": "auto",
+            "memory_enforcement_policy": "auto",
+            "override_cpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_gpus": null,
+            "override_tpu": null,
+            "mounts": null,
+            "extra_docker_compose": [],
+            "kwargs": {},
+            "extra_allowed_hosts": []
+        },
+        "verifier": {
+            "override_timeout_sec": null,
+            "max_timeout_sec": null,
+            "disable": false
+        },
+        "artifacts": [],
+        "extra_instruction_paths": [],
+        "job_id": "306ef285-eb21-4be1-a762-39b5f32fb2af"
+    },
+    "agent_info": {
+        "name": "mini-swe-agent",
+        "version": "2.4.6",
+        "model_info": {
+            "name": "gemini-3.8-flash",
+            "provider": "gemini"
+        }
+    },
+    "agent_result": {
+        "n_input_tokens": 265400,
+        "n_cache_tokens": 204635,
+        "n_output_tokens": 22669,
+        "cost_usd": 0.145930125,
+        "rollout_details": null,
+        "metadata": null
+    },
+    "verifier_result": {
+        "rewards": {
+            "reward": 1.0
+        }
+    },
+    "exception_info": null,
+    "started_at": "2026-11-24T07:30:35.879310Z",
+    "finished_at": "2026-11-24T07:35:44.908086Z",
+    "environment_setup": {
+        "started_at": "2026-11-24T07:30:36.519803Z",
+        "finished_at": "2026-11-24T07:30:45.066194Z"
+    },
+    "agent_setup": {
+        "started_at": "2026-11-24T07:30:45.068554Z",
+        "finished_at": "2026-11-24T07:31:37.459892Z"
+    },
+    "agent_execution": {
+        "started_at": "2026-11-24T07:31:37.478679Z",
+        "finished_at": "2026-11-24T07:35:35.228824Z"
+    },
+    "verifier": {
+        "started_at": "2026-11-24T07:35:37.016571Z",
+        "finished_at": "2026-11-24T07:35:37.438115Z"
+    },
+    "step_results": null
+}

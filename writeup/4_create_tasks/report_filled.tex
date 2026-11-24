@@ -1,0 +1,71 @@
+\documentclass[11pt]{article}
+\usepackage{cs329z}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\titlespacing*{\subsection}{0pt}{1.0ex}{0.3ex}
+\titlespacing*{\section}{0pt}{0pt}{0.6ex}
+\begin{document}
+\small
+\setlength{\parskip}{0.35\baselineskip}
+
+\section*{Task ID: \texttt{health-rumor-triage}}
+
+\subsection*{Description}
+The agent acts as a fact-checker for a health-information site. It gets 38 user-submitted health claims in
+Chinese, 100 short English evidence cards (one file each), and \texttt{RULES.md}. For each claim it must find
+the one card the claim is about and label it \textsc{supported}, \textsc{contradicted}, or
+\textsc{overstated} in \texttt{/app/verdicts.csv}. The capability is catching health misinformation that is
+\emph{almost} right: claims that keep the direction of a real finding but stretch its strength, scope,
+numbers, mechanism, or evidence type. It comes from my CS329Z project (a Chinese health-rumor checker), where
+these near-miss rumors were the hardest to label. The agent has to search 100 files and match across languages,
+so it cannot answer in one step.
+
+\subsection*{Construction}
+The cards are the expert rationales from my project's rumor dataset, with shuffled ids. I wrote the claims by
+perturbing card facts the way my project's perturbation feature does (negation, overclaim, wrong population or
+time frame, invented mechanism, ``observational'' $\to$ ``RCT proves'', ``most'' $\to$ ``all'', ``possible''
+$\to$ ``definitely''), plus correct paraphrases so over-flagging is also penalized (12/14/12
+supported/contradicted/overstated). \texttt{RULES.md} defines every label and edge case. The hidden verifier
+checks each row's card id and verdict against a gold key and gives reward 1 only if all 38 are right (two
+claims accept either of two valid cards). No file, header only, one label for everything, or partial answers all
+score 0; the oracle scores 1. Two blind reviews without the key matched it on every claim, and I reworded the
+claims they found borderline.
+
+\subsection*{Outcomes}
+\begin{center}
+\renewcommand{\arraystretch}{1.1}
+\small
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}Xccccc}
+  \toprule
+  Metric & Attempt 1 & Attempt 2 & Attempt 3 & Attempt 4 & Attempt 5 \\
+  \midrule
+  Verifier reward & 0 (20/38) & 1 (38/38) & 1 (38/38) & 1 (38/38) & 1 (38/38) \\
+  Wall-clock time & 4m 33s & 6m 17s & 5m 36s & 6m 00s & 4m 28s \\
+  Cost / tokens & \$0.14 / 354k & \$0.16 / 366k & \$0.15 / 445k & \$0.24 / 787k & \$0.16 / 452k \\
+  \bottomrule
+\end{tabularx}
+\end{center}
+mini-SWE-agent with Gemini 3.8 Flash passed 4 of 5 attempts. The failed attempt scored 20/38 correct.
+The most informative result is how the successes worked: in about 20 commands the agent read the rules and
+claims, printed all 100 cards with short Python scripts, matched claims to cards by keywords, and then wrote and
+format-checked the CSV, catching even the evidence-type and quantifier distortions. The task is easier than I
+intended because \texttt{RULES.md} names every distortion type, which turns judgment into lookup. A harder
+version would need evidence combined across cards, or cards that only partly address a claim.
+
+\subsection*{Self-assessment}
+\begin{center}
+\renewcommand{\arraystretch}{1.05}
+\small
+\begin{tabularx}{\linewidth}{>{\bfseries\raggedright\arraybackslash}p{0.22\linewidth}p{0.1\linewidth}X}
+  \toprule
+  Axis & Rating & Brief justification \\
+  \midrule
+  Reproducibility & 5 & Pinned image, local files only, oracle reward 1. \\
+  Capability & 4 & Real fact-checking need from my project; multi-turn search across languages. \\
+  Task--verifier fidelity & 4 & Every rule is checked, shortcuts score 0, blind reviews matched the key. \\
+  Difficulty & 2 & Gemini passed 4/5; explicit rules made the distortions easy to spot. \\
+  \bottomrule
+\end{tabularx}
+\end{center}
+\end{document}

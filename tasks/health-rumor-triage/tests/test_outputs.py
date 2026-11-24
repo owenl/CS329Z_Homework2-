@@ -125,6 +125,115 @@ GOLD = {
             "EV-389"
         ],
         "verdict": "OVERSTATED"
+    },
+    "C21": {
+        "evidence_id": [
+            "EV-926"
+        ],
+        "verdict": "OVERSTATED"
+    },
+    "C22": {
+        "evidence_id": [
+            "EV-926"
+        ],
+        "verdict": "SUPPORTED"
+    },
+    "C23": {
+        "evidence_id": [
+            "EV-356"
+        ],
+        "verdict": "OVERSTATED"
+    },
+    "C24": {
+        "evidence_id": [
+            "EV-578"
+        ],
+        "verdict": "OVERSTATED"
+    },
+    "C25": {
+        "evidence_id": [
+            "EV-461"
+        ],
+        "verdict": "OVERSTATED"
+    },
+    "C26": {
+        "evidence_id": [
+            "EV-907"
+        ],
+        "verdict": "OVERSTATED"
+    },
+    "C27": {
+        "evidence_id": [
+            "EV-156",
+            "EV-504"
+        ],
+        "verdict": "CONTRADICTED"
+    },
+    "C28": {
+        "evidence_id": [
+            "EV-612"
+        ],
+        "verdict": "SUPPORTED"
+    },
+    "C29": {
+        "evidence_id": [
+            "EV-932"
+        ],
+        "verdict": "SUPPORTED"
+    },
+    "C30": {
+        "evidence_id": [
+            "EV-359"
+        ],
+        "verdict": "SUPPORTED"
+    },
+    "C31": {
+        "evidence_id": [
+            "EV-271"
+        ],
+        "verdict": "OVERSTATED"
+    },
+    "C32": {
+        "evidence_id": [
+            "EV-878"
+        ],
+        "verdict": "SUPPORTED"
+    },
+    "C33": {
+        "evidence_id": [
+            "EV-878"
+        ],
+        "verdict": "CONTRADICTED"
+    },
+    "C34": {
+        "evidence_id": [
+            "EV-443"
+        ],
+        "verdict": "CONTRADICTED"
+    },
+    "C35": {
+        "evidence_id": [
+            "EV-443"
+        ],
+        "verdict": "SUPPORTED"
+    },
+    "C36": {
+        "evidence_id": [
+            "EV-116"
+        ],
+        "verdict": "CONTRADICTED"
+    },
+    "C37": {
+        "evidence_id": [
+            "EV-831"
+        ],
+        "verdict": "CONTRADICTED"
+    },
+    "C38": {
+        "evidence_id": [
+            "EV-212"
+        ],
+        "verdict": "CONTRADICTED"
     }
 }
 

@@ -10,6 +10,9 @@ echo "== checks"
 docker info >/dev/null 2>&1 || { echo "Docker is not running. Open Docker Desktop, wait for the whale icon, then rerun."; exit 1; }
 grep -q '^GEMINI_API_KEY=AIza' .env || { echo ".env has no AIza-format GEMINI_API_KEY. Fix .env, then rerun."; exit 1; }
 echo "ok: docker running, key present"
+if pgrep -f "harbor run" >/dev/null; then
+  echo "stopping a leftover 'harbor run' process from an earlier run"; pkill -f "harbor run"; sleep 3
+fi
 
 echo; echo "== 1/2 oracle (should be reward 1.0)"
 rm -rf "$ART/$TASK-oracle"
