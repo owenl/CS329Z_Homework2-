@@ -132,7 +132,7 @@ version would need evidence combined across cards, or cards that only partly add
   Reproducibility & 5 & Pinned image, local files only, oracle reward 1. \\
   Capability & 4 & Real fact-checking need from my project; multi-turn search across languages. \\
   Task--verifier fidelity & 4 & Every rule is checked, shortcuts score 0, blind reviews matched the key. \\
-  Difficulty & 2 & Gemini passed {n_pass}/5; explicit rules made the distortions easy to spot. \\
+  Difficulty & {1 if n_pass >= 4 else 2} & Gemini passed {n_pass}/5; explicit rules made the distortions easy to spot. \\
   \bottomrule
 \end{{tabularx}}
 \end{{center}}

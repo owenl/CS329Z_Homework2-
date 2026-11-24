@@ -16,7 +16,7 @@ Read this whole file before running anything. Every command below runs **from th
 |---|---|---|
 | Section 2 (Basics) | 5% | Done. `writeup/2_basics/responses.md` complete. |
 | Section 3 (Run example tasks, P3–P7) | 10% | Done. `writeup/3_run_example_tasks/responses.md`, 3 figures, 4 artifact jobs. |
-| Section 4 (Own task) | 70% | Task built and checked locally. **Needs: oracle + 5 Gemini runs (redo), then `report.pdf`.** |
+| Section 4 (Own task) | 70% | Done: oracle reward 1, clean Run 3 = 5/5 at 38/38, `report.pdf` written. **Only push + submit left.** |
 | Push to private GitHub | n/a | **Failed with "Repository not found"** (see section 5). |
 | Gradescope submit | n/a | Not done. |
 
@@ -86,6 +86,11 @@ that must be combined across cards, or cards that only partly address a claim.
 **Run 3 (clean):** started 23:30:34 local into an empty folder. `run_section4.sh` now kills any
 leftover `harbor run` process first; doing so ended Run 1/2's process, and that is the
 `KeyboardInterrupt`/SIGTERM traceback in the last printout. Use Run 3's 5 attempts for the report.
+
+**Run 3 result (final, clean): 5/5 attempts scored 38/38 (reward 1), no crashes, no leaked keys.**
+`N52zaBA` 5m09s $0.15, `yahg52K` 5m41s $0.19, `ZBokvk8` 7m03s $0.25, `odqkDZ3` 6m17s $0.20,
+`KsRSwnc` 5m38s $0.20. `report.pdf` has been regenerated from these (difficulty self-rating 1).
+`check_submission.py` passes all of Sections 2–4.
 
 ---
 
@@ -161,7 +166,7 @@ Suggested content:
 
 ## 5. Push to GitHub and submit
 
-Target repo: `https://github.com/owenyliu/cs329z_hw2` (**must be Private**).
+Target repo: `https://github.com/owenyliu/stanfordcs329zhw2` (**must be Private**).
 The first attempt already committed locally (commit `ca74be8`) and switched remotes
 (`origin` is now Owen's repo, the course repo is `upstream`), but **the push failed with
 "Repository not found"**. Likely causes, in order:
@@ -177,11 +182,11 @@ The first attempt already committed locally (commit `ca74be8`) and switched remo
 
 After the Section 4 runs and the report are done, push again (this commits new files and pushes):
 ```bash
-bash ~/assignment2-evals/push_to_github.sh https://github.com/owenyliu/cs329z_hw2.git
+bash ~/assignment2-evals/push_to_github.sh https://github.com/owenyliu/stanfordcs329zhw2.git
 ```
 `push_to_github.sh` stages `writeup tasks p7_plots.py run_section4.sh push_to_github.sh`, runs
 the secret scan and `check_submission.py`, commits, and pushes to `main`. `HANDOFF.md` is not
-committed. Then on Gradescope choose **GitHub**, pick `owenyliu/cs329z_hw2`, branch `main`, and
+committed. Then on Gradescope choose **GitHub**, pick `owenyliu/stanfordcs329zhw2`, branch `main`, and
 submit. Gradescope grades a snapshot, so you can resubmit until the deadline.
 
 ---
