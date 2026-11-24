@@ -1,0 +1,12 @@
+{
+    "task": {
+        "path": "tasks/health-rumor-triage"
+    },
+    "trial_name": "health-rumor-triage__crmTca4",
+    "trials_dir": "tasks/health-rumor-triage/artifacts/health-rumor-triage-gemini",
+    "agent": {
+        "import_path": "pinned_agent:MiniSweAgent",
+        "model_name": "gemini/gemini-3.8-flash"
+    },
+    "job_id": "c68463af-8ead-425d-bdf1-9898ad9dd757"
+}

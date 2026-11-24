@@ -1,0 +1,3 @@
+Evidence card EV-469
+Category: infection
+Finding: Antibody presence correlates with but does not guarantee protection; levels wane.

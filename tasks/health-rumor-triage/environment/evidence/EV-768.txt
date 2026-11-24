@@ -1,0 +1,3 @@
+Evidence card EV-768
+Category: infection
+Finding: Ulcers are caused by H. pylori and NSAIDs; capsaicin does not cause ulcers and may be protective.

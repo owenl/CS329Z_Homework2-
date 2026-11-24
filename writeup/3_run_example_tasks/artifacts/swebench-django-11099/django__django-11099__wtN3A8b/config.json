@@ -1,0 +1,12 @@
+{
+    "task": {
+        "path": "tasks/django__django-11099"
+    },
+    "trial_name": "django__django-11099__wtN3A8b",
+    "trials_dir": "writeup/3_run_example_tasks/artifacts/swebench-django-11099",
+    "agent": {
+        "import_path": "pinned_agent:MiniSweAgent",
+        "model_name": "gemini/gemini-3.8-flash"
+    },
+    "job_id": "57416da6-de33-4b8d-bf5d-2f8db2bec5ff"
+}

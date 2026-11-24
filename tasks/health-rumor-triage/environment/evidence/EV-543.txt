@@ -1,0 +1,3 @@
+Evidence card EV-543
+Category: infection
+Finding: Colds are viral; cold exposure may modestly impair nasal defenses in some studies but is not the cause.

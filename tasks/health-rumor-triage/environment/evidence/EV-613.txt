@@ -1,0 +1,3 @@
+Evidence card EV-613
+Category: infection
+Finding: HIV does not replicate in mosquitoes and is not transmitted by bites.

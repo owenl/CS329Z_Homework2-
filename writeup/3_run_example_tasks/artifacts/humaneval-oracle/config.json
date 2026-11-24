@@ -1,0 +1,10 @@
+{
+    "job_name": "humaneval-oracle",
+    "jobs_dir": "writeup/3_run_example_tasks/artifacts",
+    "n_concurrent_trials": 1,
+    "tasks": [
+        {
+            "path": "tasks/humaneval-0"
+        }
+    ]
+}

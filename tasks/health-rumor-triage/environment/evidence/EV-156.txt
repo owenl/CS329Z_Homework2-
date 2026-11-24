@@ -1,0 +1,3 @@
+Evidence card EV-156
+Category: nutrition
+Finding: Mendelian randomization and large cohorts find no safe level of alcohol for overall health; earlier 'J-curve' was confounded.

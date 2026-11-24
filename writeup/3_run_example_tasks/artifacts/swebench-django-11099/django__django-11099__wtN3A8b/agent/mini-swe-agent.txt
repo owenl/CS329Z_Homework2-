@@ -1,0 +1,3660 @@
+This is mini-swe-agent version 2.4.6.
+Check the v2 migration guide at https://klieret.short.gy/mini-v2-migration
+Loading global config from '/root/.config/mini-swe-agent/.env'
+Warning: Input is not a terminal (fd=0).
+Building agent config from specs: 
+['/root/.local/share/uv/tools/mini-swe-agent/lib/python3.12/site-packages/minisw
+eagent/config/mini.yaml']
+
+System:
+You are a helpful assistant that can interact with a computer.
+
+User:
+Please solve this issue: UsernameValidator allows trailing newline in usernames
+Description
+
+ASCIIUsernameValidator and UnicodeUsernameValidator use the regex 
+r'^[\w.@+-]+$'
+The intent is to only allow alphanumeric characters as well as ., @, +, and -. 
+However, a little known quirk of Python regexes is that $ will also match a 
+trailing newline. Therefore, the user name validators will accept usernames 
+which end with a newline. You can avoid this behavior by instead using \A and \Z
+to terminate regexes. For example, the validator regex could be changed to
+r'\A[\w.@+-]+\Z'
+in order to reject usernames that end with a newline.
+I am not sure how to officially post a patch, but the required change is trivial
+- using the regex above in the two validators in contrib.auth.validators.
+
+
+You can execute bash commands and edit files to implement the necessary changes.
+
+## Recommended Workflow
+
+This workflow should be done step-by-step so that you can iterate on your 
+changes and any possible problems.
+
+1. Analyze the codebase by finding and reading relevant files
+2. Create a script to reproduce the issue
+3. Edit the source code to resolve the issue
+4. Verify your fix works by running your script again
+5. Test edge cases to ensure your fix is robust
+6. Submit your changes and finish your work by issuing the following command: 
+`echo COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT`.
+   Do not combine it with any other command. <important>After this command, you 
+cannot continue working on this task.</important>
+
+## Command Execution Rules
+
+You are operating in an environment where
+
+1. You issue at least one command
+2. The system executes the command(s) in a subshell
+3. You see the result(s)
+4. You write your next command(s)
+
+Each response should include:
+
+1. **Reasoning text** where you explain your analysis and plan
+2. At least one tool call with your command
+
+**CRITICAL REQUIREMENTS:**
+
+- Your response SHOULD include reasoning text explaining what you're doing
+- Your response MUST include AT LEAST ONE bash tool call
+- Directory or environment variable changes are not persistent. Every action is 
+executed in a new subshell.
+- However, you can prefix any action with `MY_ENV_VAR=MY_VALUE cd 
+/path/to/working/dir && ...` or write/load environment variables from files
+- Submit your changes and finish your work by issuing the following command: 
+`echo COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT`.
+  Do not combine it with any other command. <important>After this command, you 
+cannot continue working on this task.</important>
+
+Example of a CORRECT response:
+<example_response>
+I need to understand the structure of the repository first. Let me check what 
+files are in the current directory to get a better understanding of the 
+codebase.
+
+[Makes bash tool call with {"command": "ls -la"} as arguments]
+</example_response>
+
+<system_information>
+Linux 7.0.14-linuxkit #1 SMP PREEMPT Fri Oct 16 11:55:50 UTC 2026 x86_64
+</system_information>
+
+## Useful command examples
+
+### Create a new file:
+
+```bash
+cat <<'EOF' > newfile.py
+import numpy as np
+hello = "world"
+print(hello)
+EOF
+```
+
+### Edit files with sed:```bash
+# Replace all occurrences
+sed -i 's/old_string/new_string/g' filename.py
+
+# Replace only first occurrence
+sed -i 's/old_string/new_string/' filename.py
+
+# Replace first occurrence on line 1
+sed -i '1s/old_string/new_string/' filename.py
+
+# Replace all occurrences in lines 1-10
+sed -i '1,10s/old_string/new_string/g' filename.py
+```
+
+### View file content:
+
+```bash
+# View specific lines with numbers
+nl -ba filename.py | sed -n '10,20p'
+```
+
+### Any other command you want to run
+
+```bash
+anything
+```
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 1, $0.00):
+I need to locate `contrib/auth/validators.py` and the associated tests to 
+understand the current implementation and testing setup.
+
+```
+find . -name "validators.py" | grep auth
+```
+
+Tool:
+<returncode>
+0
+<output>
+./django/contrib/auth/validators.py
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 2, $0.00):
+I will inspect `django/contrib/auth/validators.py` to see the current regexes 
+used.
+
+```
+cat django/contrib/auth/validators.py
+```
+
+Tool:
+<returncode>
+0
+<output>
+import re
+
+from django.core import validators
+from django.utils.deconstruct import deconstructible
+from django.utils.translation import gettext_lazy as _
+
+
+@deconstructible
+class ASCIIUsernameValidator(validators.RegexValidator):
+    regex = r'^[\w.@+-]+$'
+    message = _(
+        'Enter a valid username. This value may contain only English letters, '
+        'numbers, and @/./+/-/_ characters.'
+    )
+    flags = re.ASCII
+
+
+@deconstructible
+class UnicodeUsernameValidator(validators.RegexValidator):
+    regex = r'^[\w.@+-]+$'
+    message = _(
+        'Enter a valid username. This value may contain only letters, '
+        'numbers, and @/./+/-/_ characters.'
+    )
+    flags = 0
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 3, $0.00):
+I'll search for tests testing `ASCIIUsernameValidator` or 
+`UnicodeUsernameValidator`.
+
+```
+git grep -l "ASCIIUsernameValidator"
+```
+
+Tool:
+<returncode>
+0
+<output>
+django/contrib/auth/validators.py
+docs/ref/contrib/auth.txt
+docs/releases/1.10.txt
+tests/auth_tests/test_validators.py
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 4, $0.01):
+I will examine `tests/auth_tests/test_validators.py` and check 
+`docs/ref/contrib/auth.txt`.
+
+```
+cat tests/auth_tests/test_validators.py
+```
+
+Tool:
+<returncode>
+0
+<output_head>
+import os
+
+from django.contrib.auth import validators
+from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import (
+    CommonPasswordValidator, MinimumLengthValidator, NumericPasswordValidator,
+    UserAttributeSimilarityValidator, get_default_password_validators,
+    get_password_validators, password_changed,
+    password_validators_help_text_html, password_validators_help_texts,
+    validate_password,
+)
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.test import SimpleTestCase, TestCase, override_settings
+from django.test.utils import isolate_apps
+from django.utils.html import conditional_escape
+
+
+@override_settings(AUTH_PASSWORD_VALIDATORS=[
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 
+'OPTIONS': {
+        'min_length': 12,
+    }},
+])
+class PasswordValidationTest(SimpleTestCase):
+    def test_get_default_password_validators(self):
+        validators = get_default_password_validators()
+        self.assertEqual(len(validators), 2)
+        self.assertEqual(validators[0].__class__.__name__, 
+'CommonPasswordValidator')
+        self.assertEqual(validators[1].__class__.__name__, 
+'MinimumLengthValidator')
+        self.assertEqual(validators[1].min_length, 12)
+
+    def test_get_password_validators_custom(self):
+        validator_config = [{'NAME': 
+'django.contrib.auth.password_validation.CommonPasswordValidator'}]
+        validators = get_password_validators(validator_config)
+        self.assertEqual(len(validators), 1)
+        self.assertEqual(validators[0].__class__.__name__, 
+'CommonPasswordValidator')
+
+        self.assertEqual(get_password_validators([]), [])
+
+    def test_validate_password(self):
+        self.assertIsNone(validate_password('sufficiently-long'))
+        msg_too_short = 'This password is too short. It must contain at least 12
+characters.'
+
+        with self.assertRaises(ValidationError) as cm:
+            validate_password('django4242')
+        self.assertEqual(cm.exception.messages, [msg_too_short])
+        self.assertEqual(cm.exception.error_list[0].code, 'password_too_short')
+
+        with self.assertRaises(ValidationError) as cm:
+            validate_password('password')
+        self.assertEqual(cm.exception.messages, ['This password is too common.',
+msg_too_short])
+        self.assertEqual(cm.exception.error_list[0].code, 'password_too_common')
+
+        self.assertIsNone(validate_password('password', password_validators=[]))
+
+    def test_password_changed(self):
+        self.assertIsNone(password_changed('password'))
+
+    def test_password_changed_with_custom_validator(self):
+        class Validator:
+            def password_changed(self, password, user):
+                self.password = password
+                self.user = user
+
+        user = object()
+        validator = Validator()
+        password_changed('password', user=user, 
+password_validators=(validator,))
+        self.assertIs(validator.user, user)
+        self.assertEqual(validator.password, 'password')
+
+    def test_password_validators_help_texts(self):
+        help_texts = password_validators_help_texts()
+        self.assertEqual(len(help_texts), 2)
+        self.assertIn('12 characters', help_texts[1])
+
+        self.assertEqual(password_validators_help_texts(password_validators=[]),
+[])
+
+    def test_password_validators_help_text_html(self):
+        help_text = password_validators_help_text_html()
+        self.assertEqual(help_text.count('<li>'), 2)
+        self.assertIn('12 characters', help_text)
+
+    def test_password_validators_help_text_html_escaping(self):
+        class AmpersandValidator:
+            def get_help_text(self):
+                return 'Must contain &'
+        help_text = password_validators_help_text_html([AmpersandValidator()])
+        self.assertEqual(help_text, '<ul><li>Must contain &amp;</li></ul>')
+        # help_text is marked safe and therefore unchanged by 
+conditional_escape().
+        self.assertEqual(help_text, conditional_escape(help_text))
+
+    @override_settings(AUTH_PASSWORD_VALIDATORS=[])
+    def test_empty_password_validator_help_text_html(self):
+        self.assertEqual(password_validators_help_text_html(), '')
+
+
+class MinimumLengthValidatorTest(SimpleTestCase):
+    def test_validate(self):
+        expected_error = "This password is too short. It must contain at least 
+%d characters."
+        self.assertIsNone(MinimumLengthValidator().validate('12345678'))
+        self.assertIsNone(MinimumLengthValidator(min_length=3).validate('123'))
+
+        with self.assertRaises(ValidationError) as cm:
+            MinimumLengthValidator().validate('1234567')
+        self.assertEqual(cm.exception.messages, [expected_error % 8])
+        self.assertEqual(cm.exception.error_list[0].code, 'password_too_short')
+
+        with self.assertRaises(ValidationError) as cm:
+            MinimumLengthValidator(min_length=3).valid
+<output_tail>
+=['first_name'],
+                max_similarity=0.3,
+            ).validate('testclient', user=user)
+        self.assertEqual(cm.exception.messages, [expected_error % "first name"])
+        # max_similarity=1 doesn't allow passwords that are identical to the
+        # attribute's value.
+        with self.assertRaises(ValidationError) as cm:
+            UserAttributeSimilarityValidator(
+                user_attributes=['first_name'],
+                max_similarity=1,
+            ).validate(user.first_name, user=user)
+        self.assertEqual(cm.exception.messages, [expected_error % "first name"])
+        # max_similarity=0 rejects all passwords.
+        with self.assertRaises(ValidationError) as cm:
+            UserAttributeSimilarityValidator(
+                user_attributes=['first_name'],
+                max_similarity=0,
+            ).validate('XXX', user=user)
+        self.assertEqual(cm.exception.messages, [expected_error % "first name"])
+        # Passes validation.
+        self.assertIsNone(
+            UserAttributeSimilarityValidator(user_attributes=['first_name']).val
+idate('testclient', user=user)
+        )
+
+    @isolate_apps('auth_tests')
+    def test_validate_property(self):
+        class TestUser(models.Model):
+            pass
+
+            @property
+            def username(self):
+                return 'foobar'
+
+        with self.assertRaises(ValidationError) as cm:
+            UserAttributeSimilarityValidator().validate('foobar', 
+user=TestUser()),
+        self.assertEqual(cm.exception.messages, ['The password is too similar to
+the username.'])
+
+    def test_help_text(self):
+        self.assertEqual(
+            UserAttributeSimilarityValidator().get_help_text(),
+            "Your password can't be too similar to your other personal 
+information."
+        )
+
+
+class CommonPasswordValidatorTest(SimpleTestCase):
+    def test_validate(self):
+        expected_error = "This password is too common."
+        self.assertIsNone(CommonPasswordValidator().validate('a-safe-password'))
+
+        with self.assertRaises(ValidationError) as cm:
+            CommonPasswordValidator().validate('godzilla')
+        self.assertEqual(cm.exception.messages, [expected_error])
+
+    def test_validate_custom_list(self):
+        path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 
+'common-passwords-custom.txt')
+        validator = CommonPasswordValidator(password_list_path=path)
+        expected_error = "This password is too common."
+        self.assertIsNone(validator.validate('a-safe-password'))
+
+        with self.assertRaises(ValidationError) as cm:
+            validator.validate('from-my-custom-list')
+        self.assertEqual(cm.exception.messages, [expected_error])
+        self.assertEqual(cm.exception.error_list[0].code, 'password_too_common')
+
+    def test_validate_django_supplied_file(self):
+        validator = CommonPasswordValidator()
+        for password in validator.passwords:
+            self.assertEqual(password, password.lower())
+
+    def test_help_text(self):
+        self.assertEqual(
+            CommonPasswordValidator().get_help_text(),
+            "Your password can't be a commonly used password."
+        )
+
+
+class NumericPasswordValidatorTest(SimpleTestCase):
+    def test_validate(self):
+        expected_error = "This password is entirely numeric."
+        self.assertIsNone(NumericPasswordValidator().validate('a-safe-password')
+)
+
+        with self.assertRaises(ValidationError) as cm:
+            NumericPasswordValidator().validate('42424242')
+        self.assertEqual(cm.exception.messages, [expected_error])
+        self.assertEqual(cm.exception.error_list[0].code, 
+'password_entirely_numeric')
+
+    def test_help_text(self):
+        self.assertEqual(
+            NumericPasswordValidator().get_help_text(),
+            "Your password can't be entirely numeric."
+        )
+
+
+class UsernameValidatorsTests(SimpleTestCase):
+    def test_unicode_validator(self):
+        valid_usernames = ['joe', 'René', 'ᴮᴵᴳᴮᴵᴿᴰ', 'أحمد']
+        invalid_usernames = [
+            "o'connell", "عبد ال",
+            "zerowidth\u200Bspace", "nonbreaking\u00A0space",
+            "en\u2013dash",
+        ]
+        v = validators.UnicodeUsernameValidator()
+        for valid in valid_usernames:
+            with self.subTest(valid=valid):
+                v(valid)
+        for invalid in invalid_usernames:
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValidationError):
+                    v(invalid)
+
+    def test_ascii_validator(self):
+        valid_usernames = ['glenn', 'GLEnN', 'jean-marc']
+        invalid_usernames = ["o'connell", 'Éric', 'jean marc', "أحمد"]
+        v = validators.ASCIIUsernameValidator()
+        for valid in valid_usernames:
+            with self.subTest(valid=valid):
+                v(valid)
+        for invalid in invalid_usernames:
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValidationError):
+                    v(invalid)
+
+<elided_chars>
+1347
+<warning>
+Output too long.
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 5, $0.01):
+I will check `docs/ref/contrib/auth.txt` for references to 
+`ASCIIUsernameValidator` and `UnicodeUsernameValidator`.
+
+```
+git grep -n -C 5 "UsernameValidator" docs/
+```
+
+Tool:
+<returncode>
+0
+<output>
+docs/ref/contrib/auth.txt-138-        attribute.
+docs/ref/contrib/auth.txt-139-
+docs/ref/contrib/auth.txt-140-    .. attribute:: username_validator
+docs/ref/contrib/auth.txt-141-
+docs/ref/contrib/auth.txt-142-        Points to a validator instance used to 
+validate usernames. Defaults to
+docs/ref/contrib/auth.txt:143:        
+:class:`validators.UnicodeUsernameValidator`.
+docs/ref/contrib/auth.txt-144-
+docs/ref/contrib/auth.txt-145-        To change the default username validator, 
+you can subclass the ``User``
+docs/ref/contrib/auth.txt-146-        model and set this attribute to a 
+different validator instance. For
+docs/ref/contrib/auth.txt-147-        example, to use ASCII usernames::
+docs/ref/contrib/auth.txt-148-
+docs/ref/contrib/auth.txt-149-            from django.contrib.auth.models import
+User
+docs/ref/contrib/auth.txt:150:            from django.contrib.auth.validators 
+import ASCIIUsernameValidator
+docs/ref/contrib/auth.txt-151-
+docs/ref/contrib/auth.txt-152-            class CustomUser(User):
+docs/ref/contrib/auth.txt:153:                username_validator = 
+ASCIIUsernameValidator()
+docs/ref/contrib/auth.txt-154-
+docs/ref/contrib/auth.txt-155-                class Meta:
+docs/ref/contrib/auth.txt-156-                    proxy = True  # If no new 
+field is added.
+docs/ref/contrib/auth.txt-157-
+docs/ref/contrib/auth.txt-158-Methods
+--
+docs/ref/contrib/auth.txt-391-            group.permissions.clear()
+docs/ref/contrib/auth.txt-392-
+docs/ref/contrib/auth.txt-393-Validators
+docs/ref/contrib/auth.txt-394-==========
+docs/ref/contrib/auth.txt-395-
+docs/ref/contrib/auth.txt:396:.. class:: validators.ASCIIUsernameValidator
+docs/ref/contrib/auth.txt-397-
+docs/ref/contrib/auth.txt-398-    A field validator allowing only ASCII letters 
+and numbers, in addition to
+docs/ref/contrib/auth.txt-399-    ``@``, ``.``, ``+``, ``-``, and ``_``.
+docs/ref/contrib/auth.txt-400-
+docs/ref/contrib/auth.txt:401:.. class:: validators.UnicodeUsernameValidator
+docs/ref/contrib/auth.txt-402-
+docs/ref/contrib/auth.txt-403-    A field validator allowing Unicode characters,
+in addition to ``@``, ``.``,
+docs/ref/contrib/auth.txt-404-    ``+``, ``-``, and ``_``. The default validator
+for ``User.username``.
+docs/ref/contrib/auth.txt-405-
+docs/ref/contrib/auth.txt-406-.. _topics-auth-signals:
+--
+docs/releases/1.10.txt-61-
+docs/releases/1.10.txt-62-The username validator now explicitly accepts Unicode 
+characters by
+docs/releases/1.10.txt-63-default on Python 3 only. This default behavior can be
+overridden by changing
+docs/releases/1.10.txt-64-the 
+:attr:`~django.contrib.auth.models.User.username_validator` attribute of
+docs/releases/1.10.txt-65-the ``User`` model, or to any proxy of that model, 
+using either
+docs/releases/1.10.txt:66::class:`~django.contrib.auth.validators.ASCIIUsernameV
+alidator` or
+docs/releases/1.10.txt:67::class:`~django.contrib.auth.validators.UnicodeUsernam
+eValidator`. Custom user
+docs/releases/1.10.txt-68-models may also use those validators.
+docs/releases/1.10.txt-69-
+docs/releases/1.10.txt-70-Minor features
+docs/releases/1.10.txt-71---------------
+docs/releases/1.10.txt-72-
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 6, $0.01):
+I will search the django codebase for `\A` and `\Z` in regexes.
+
+```
+git grep -E r"['\"].*\\\\A.*\\\\Z" django/
+```
+
+Tool:
+<returncode>
+1
+<output>
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 7, $0.01):
+I will search for `\Z` in `django/`.
+
+```
+git grep "\\\\Z" django/
+```
+
+Tool:
+<returncode>
+0
+<output>
+Binary file django/conf/locale/ko/LC_MESSAGES/django.mo matches
+Binary file django/contrib/admin/static/admin/fonts/Roboto-Bold-webfont.woff 
+matches
+Binary file django/contrib/admin/static/admin/fonts/Roboto-Light-webfont.woff 
+matches
+Binary file django/contrib/admin/static/admin/fonts/Roboto-Regular-webfont.woff 
+matches
+Binary file django/contrib/auth/common-passwords.txt.gz matches
+django/core/validators.py:        r'\Z', re.IGNORECASE)
+django/core/validators.py:    _lazy_re_compile(r'^-?\d+\Z'),
+django/core/validators.py:        
+r"(^[-!#$%&'*+/=?^_`{}|~0-9A-Z]+(\.[-!#$%&'*+/=?^_`{}|~0-9A-Z]+)*\Z"  # dot-atom
+django/core/validators.py:        
+r'|^"([\001-\010\013\014\016-\037!#-\[\]-\177]|\\[\001-\011\013\014\016-\177])*"
+\Z)',  # quoted-string
+django/core/validators.py:        
+r'((?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+)(?:[A-Z0-9-]{2,63}(?<!-))\Z',
+django/core/validators.py:        r'\[([A-f0-9:\.]+)\]\Z',
+django/core/validators.py:slug_re = _lazy_re_compile(r'^[-a-zA-Z0-9_]+\Z')
+django/core/validators.py:slug_unicode_re = _lazy_re_compile(r'^[-\w]+\Z')
+django/core/validators.py:    regexp = 
+_lazy_re_compile(r'^%(neg)s\d+(?:%(sep)s%(neg)s\d+)*\Z' % {
+django/utils/http.py:    )\Z      # end of string and capture group
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 8, $0.02):
+I will check `django/core/validators.py` to see how `_lazy_re_compile` and other
+regexes are written.
+
+```
+git log -S "\\Z" -p django/core/validators.py
+```
+
+Tool:
+<returncode>
+0
+<output>
+commit 277a4dd4b4cc2a2cad77139882f084480751a95a
+Author: Claude Paroz <claude@2xlibre.net>
+Date:   Sun Jan 29 20:07:50 2017 +0100
+
+    Fixed #27793 -- Used stdlib's ipaddress module to validate IP addresses
+    
+    Thanks Tim Graham for the review.
+
+diff --git a/django/core/validators.py b/django/core/validators.py
+index 732bcae486..365c6a7f15 100644
+--- a/django/core/validators.py
++++ b/django/core/validators.py
+@@ -1,3 +1,4 @@
++import ipaddress
+ import os
+ import re
+ from urllib.parse import urlsplit, urlunsplit
+@@ -247,8 +248,12 @@ validate_unicode_slug = RegexValidator(
+     'invalid'
+ )
+ 
+-ipv4_re = 
+_lazy_re_compile(r'^(25[0-5]|2[0-4][0-9]|[0-1]?[0-9]?[0-9])(\.(25[0-5]|2[0-4][0-
+9]|[0-1]?[0-9]?[0-9])){3}\Z')
+-validate_ipv4_address = RegexValidator(ipv4_re, _('Enter a valid IPv4 
+address.'), 'invalid')
++
++def validate_ipv4_address(value):
++    try:
++        ipaddress.IPv4Address(value)
++    except ValueError:
++        raise ValidationError(_('Enter a valid IPv4 address.'), code='invalid')
+ 
+ 
+ def validate_ipv6_address(value):
+
+commit f8cc464452f495fce2a3d6f7494396c8f798a1e6
+Author: Edward Henderson <kutenai@me.com>
+Date:   Wed Apr 15 16:28:49 2015 -0600
+
+    Fixed #16501 -- Added an allow_unicode parameter to SlugField.
+    
+    Thanks Flavio Curella and Berker Peksag for the initial patch.
+
+diff --git a/django/core/validators.py b/django/core/validators.py
+index 32158644c7..400b48d8d6 100644
+--- a/django/core/validators.py
++++ b/django/core/validators.py
+@@ -215,6 +215,13 @@ validate_slug = RegexValidator(
+     'invalid'
+ )
+ 
++slug_unicode_re = re.compile(r'^[-\w]+\Z', re.U)
++validate_unicode_slug = RegexValidator(
++    slug_unicode_re,
++    _("Enter a valid 'slug' consisting of Unicode letters, numbers, 
+underscores, or hyphens."),
++    'invalid'
++)
++
+ ipv4_re = 
+re.compile(r'^(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3
+}\Z')
+ validate_ipv4_address = RegexValidator(ipv4_re, _('Enter a valid IPv4 
+address.'), 'invalid')
+ 
+
+commit 014247ad1922931a2f17beaf6249247298e9dc44
+Author: Tim Graham <timograham@gmail.com>
+Date:   Fri Jun 12 13:49:31 2015 -0400
+
+    Prevented newlines from being accepted in some validators.
+    
+    This is a security fix; disclosure to follow shortly.
+    
+    Thanks to Sjoerd Job Postmus for the report and draft patch.
+
+diff --git a/django/core/validators.py b/django/core/validators.py
+index 9feb33e8e9..d68533af9d 100644
+--- a/django/core/validators.py
++++ b/django/core/validators.py
+@@ -83,7 +83,7 @@ class URLValidator(RegexValidator):
+         r'(?:' + ipv4_re + '|' + ipv6_re + '|' + host_re + ')'
+         r'(?::\d{2,5})?'  # port
+         r'(?:[/?#][^\s]*)?'  # resource path
+-        r'$', re.IGNORECASE)
++        r'\Z', re.IGNORECASE)
+     message = _('Enter a valid URL.')
+     schemes = ['http', 'https', 'ftp', 'ftps']
+ 
+@@ -125,12 +125,15 @@ class URLValidator(RegexValidator):
+                     raise ValidationError(self.message, code=self.code)
+             url = value
+ 
++integer_validator = RegexValidator(
++    re.compile('^-?\d+\Z'),
++    message=_('Enter a valid integer.'),
++    code='invalid',
++)
++
+ 
+ def validate_integer(value):
+-    try:
+-        int(value)
+-    except (ValueError, TypeError):
+-        raise ValidationError(_('Enter a valid integer.'), code='invalid')
++    return integer_validator(value)
+ 
+ 
+ @deconstructible
+@@ -138,16 +141,16 @@ class EmailValidator(object):
+     message = _('Enter a valid email address.')
+     code = 'invalid'
+     user_regex = re.compile(
+-        r"(^[-!#$%&'*+/=?^_`{}|~0-9A-Z]+(\.[-!#$%&'*+/=?^_`{}|~0-9A-Z]+)*$"  # 
+dot-atom
+-        
+r'|^"([\001-\010\013\014\016-\037!#-\[\]-\177]|\\[\001-\011\013\014\016-\177])*"
+$)',  # quoted-string
++        r"(^[-!#$%&'*+/=?^_`{}|~0-9A-Z]+(\.[-!#$%&'*+/=?^_`{}|~0-9A-Z]+)*\Z"  #
+dot-atom
++        
+r'|^"([\001-\010\013\014\016-\037!#-\[\]-\177]|\\[\001-\011\013\014\016-\177])*"
+\Z)',  # quoted-string
+         re.IGNORECASE)
+     domain_regex = re.compile(
+         # max length for domain name labels is 63 characters per RFC 1034
+-        
+r'((?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+)(?:[A-Z0-9-]{2,63}(?<!-))$',
++        
+r'((?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+)(?:[A-Z0-9-]{2,63}(?<!-))\Z',
+         re.IGNORECASE)
+     literal_regex = re.compile(
+         # literal form, ipv4 or ipv6 address (SMTP 4.1.3)
+-        r'\[([A-f0-9:\.]+)\]$',
++        r'\[([A-f0-9:\.]+)\]\Z',
+         re.IGNORECASE)
+     domain_whitelist = ['localhost']
+ 
+@@ -205,14 +208,14 @@ class EmailValidator(object):
+ 
+ validate_email = EmailValidator()
+ 
+-slug_re = re.compile(r'^[-a-zA-Z0-9_]+$')
++slug_re = re.compile(r'^[-a-zA-Z0-9_]+\Z')
+ validate_slug = RegexValidator(
+     slug_re,
+     _("Enter a valid 'slug' consisting of letters, numbers, underscores or 
+hyphens."),
+     'invalid'
+ )
+ 
+-ipv4_re = 
+re.compile(r'^(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3
+}$')
++ipv4_re = 
+re.compile(r'^(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3
+}\Z')
+ validate_ipv4_address = RegexValidator(ipv4_re, _('Enter a valid IPv4 
+address.'), 'invalid')
+ 
+ 
+@@ -255,7 +258,7 @@ def ip_address_validators(protocol, unpack_ipv4):
+ 
+ 
+ def int_list_validator(sep=',', message=None, code='invalid'):
+-    regexp = re.compile('^\d+(?:%s\d+)*$' % re.escape(sep))
++    regexp = re.compile('^\d+(?:%s\d+)*\Z' % re.escape(sep))
+     return RegexValidator(regexp, message=message, code=code)
+ 
+ 
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 9, $0.02):
+I will search for `\A` in django.
+
+```
+git grep "\\\\A" django/
+```
+
+Tool:
+<returncode>
+0
+<output>
+Binary file django/conf/locale/de/LC_MESSAGES/django.mo matches
+Binary file django/conf/locale/es_CO/LC_MESSAGES/django.mo matches
+Binary file django/conf/locale/sv/LC_MESSAGES/django.mo matches
+Binary file django/contrib/admin/locale/it/LC_MESSAGES/django.mo matches
+Binary file django/contrib/admin/static/admin/fonts/Roboto-Bold-webfont.woff 
+matches
+Binary file django/contrib/admin/static/admin/fonts/Roboto-Light-webfont.woff 
+matches
+Binary file django/contrib/auth/common-passwords.txt.gz matches
+django/utils/http.py:    \A(      # start of string and capture group
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 10, $0.03):
+I will check git log of `django/contrib/auth/validators.py`.
+
+```
+git log -p django/contrib/auth/validators.py
+```
+
+Tool:
+<returncode>
+0
+<output>
+commit 04df050ee958b843111c32aaaa362eda26b25bda
+Author: SWE-bench <setup@swebench.com>
+Date:   Sat Aug 15 06:03:09 2026 +0000
+
+    SWE-bench
+
+diff --git a/django/contrib/auth/validators.py 
+b/django/contrib/auth/validators.py
+old mode 100644
+new mode 100755
+
+commit c651331b34b7c3841c126959e6e52879bc6f0834
+Author: Claude Paroz <claude@2xlibre.net>
+Date:   Thu Jan 26 20:58:33 2017 +0100
+
+    Converted usage of ugettext* functions to their gettext* aliases
+    
+    Thanks Tim Graham for the review.
+
+diff --git a/django/contrib/auth/validators.py 
+b/django/contrib/auth/validators.py
+index d8083de809..b4878cfd45 100644
+--- a/django/contrib/auth/validators.py
++++ b/django/contrib/auth/validators.py
+@@ -2,7 +2,7 @@ import re
+ 
+ from django.core import validators
+ from django.utils.deconstruct import deconstructible
+-from django.utils.translation import ugettext_lazy as _
++from django.utils.translation import gettext_lazy as _
+ 
+ 
+ @deconstructible
+
+commit c716fe87821df00f9f03ecc761c914d1682591a2
+Author: Claude Paroz <claude@2xlibre.net>
+Date:   Thu Dec 1 11:38:01 2016 +0100
+
+    Refs #23919 -- Removed six.PY2/PY3 usage
+    
+    Thanks Tim Graham for the review.
+
+diff --git a/django/contrib/auth/validators.py 
+b/django/contrib/auth/validators.py
+index 0691d22a88..d8083de809 100644
+--- a/django/contrib/auth/validators.py
++++ b/django/contrib/auth/validators.py
+@@ -1,7 +1,6 @@
+ import re
+ 
+ from django.core import validators
+-from django.utils import six
+ from django.utils.deconstruct import deconstructible
+ from django.utils.translation import ugettext_lazy as _
+ 
+@@ -13,7 +12,7 @@ class ASCIIUsernameValidator(validators.RegexValidator):
+         'Enter a valid username. This value may contain only English letters, '
+         'numbers, and @/./+/-/_ characters.'
+     )
+-    flags = re.ASCII if six.PY3 else 0
++    flags = re.ASCII
+ 
+ 
+ @deconstructible
+@@ -23,4 +22,4 @@ class UnicodeUsernameValidator(validators.RegexValidator):
+         'Enter a valid username. This value may contain only letters, '
+         'numbers, and @/./+/-/_ characters.'
+     )
+-    flags = re.UNICODE if six.PY2 else 0
++    flags = 0
+
+commit 526575c64150e10dd8666d1ed3f86eedd00df2ed
+Author: Claude Paroz <claude@2xlibre.net>
+Date:   Fri Apr 22 19:39:13 2016 +0200
+
+    Fixed #21379 -- Created auth-specific username validators
+    
+    Thanks Tim Graham for the review.
+
+diff --git a/django/contrib/auth/validators.py 
+b/django/contrib/auth/validators.py
+new file mode 100644
+index 0000000000..0691d22a88
+--- /dev/null
++++ b/django/contrib/auth/validators.py
+@@ -0,0 +1,26 @@
++import re
++
++from django.core import validators
++from django.utils import six
++from django.utils.deconstruct import deconstructible
++from django.utils.translation import ugettext_lazy as _
++
++
++@deconstructible
++class ASCIIUsernameValidator(validators.RegexValidator):
++    regex = r'^[\w.@+-]+$'
++    message = _(
++        'Enter a valid username. This value may contain only English letters, '
++        'numbers, and @/./+/-/_ characters.'
++    )
++    flags = re.ASCII if six.PY3 else 0
++
++
++@deconstructible
++class UnicodeUsernameValidator(validators.RegexValidator):
++    regex = r'^[\w.@+-]+$'
++    message = _(
++        'Enter a valid username. This value may contain only letters, '
++        'numbers, and @/./+/-/_ characters.'
++    )
++    flags = re.UNICODE if six.PY2 else 0
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 11, $0.03):
+I will check `tests/validators/tests.py` around newlines.
+
+```
+git grep -n "newline" tests/
+```
+
+Tool:
+<returncode>
+0
+<output>
+tests/admin_scripts/tests.py:125:            env=test_environ, 
+universal_newlines=True,
+tests/file_uploads/tests.py:99:    def test_big_base64_newlines_upload(self):
+tests/files/tests.py:91:    def test_file_iteration_windows_newlines(self):
+tests/files/tests.py:99:    def test_file_iteration_mac_newlines(self):
+tests/files/tests.py:107:    def test_file_iteration_mixed_newlines(self):
+tests/files/tests.py:111:    def 
+test_file_iteration_with_unix_newline_at_chunk_boundary(self):
+tests/files/tests.py:119:    def 
+test_file_iteration_with_windows_newline_at_chunk_boundary(self):
+tests/files/tests.py:127:    def 
+test_file_iteration_with_mac_newline_at_chunk_boundary(self):
+tests/files/tests.py:161:            wrapper = TextIOWrapper(test_file, 'utf-8',
+newline='\n')
+tests/forms_tests/tests/test_widgets.py:13:    def 
+test_textarea_trailing_newlines(self):
+tests/forms_tests/widget_tests/test_widget.py:21:    def 
+test_no_trailing_newline_in_attrs(self):
+tests/httpwrappers/tests.py:334:        # Bug #20889: long lines trigger 
+newlines to be added to headers
+tests/httpwrappers/tests.py:341:        # will itself insert a newline in the 
+header
+tests/httpwrappers/tests.py:344:    def test_newlines_in_headers(self):
+tests/httpwrappers/tests.py:345:        # Bug #10188: Do not allow newlines in 
+headers (CR or LF)
+tests/logging_tests/tests.py:332:    def test_subject_accepts_newlines(self):
+tests/logging_tests/tests.py:337:        message = 'Message \r\n with newlines'
+tests/logging_tests/tests.py:338:        expected_subject = 'ERROR: Message 
+\\r\\n with newlines'
+tests/mail/tests.py:832:        to avoid having to insert newlines, which could 
+be hairy to do properly.
+tests/requests/tests.py:221:        # If a stream contains a newline, but the 
+provided length
+tests/requests/tests.py:222:        # is less than the number of provided 
+characters, the newline
+tests/template_backends/test_jinja2.py:23:        'keep_trailing_newline': True,
+tests/template_tests/filter_tests/test_linebreaks.py:31:    def 
+test_newline(self):
+tests/template_tests/filter_tests/test_linebreaks.py:37:    def 
+test_carriage_newline(self):
+tests/template_tests/filter_tests/test_linebreaksbr.py:27:    def 
+test_newline(self):
+tests/template_tests/filter_tests/test_linebreaksbr.py:33:    def 
+test_carriage_newline(self):
+tests/template_tests/syntax_tests/test_basic.py:206:        Embedded newlines 
+make it not-a-tag.
+tests/utils_tests/test_text.py:159:    def test_normalize_newlines(self):
+tests/utils_tests/test_text.py:160:        
+self.assertEqual(text.normalize_newlines("abc\ndef\rghi\r\n"), 
+"abc\ndef\nghi\n")
+tests/utils_tests/test_text.py:161:        
+self.assertEqual(text.normalize_newlines("\n\r\r\n\r"), "\n\n\n\n")
+tests/utils_tests/test_text.py:162:        
+self.assertEqual(text.normalize_newlines("abcdefghi"), "abcdefghi")
+tests/utils_tests/test_text.py:163:        
+self.assertEqual(text.normalize_newlines(""), "")
+tests/utils_tests/test_text.py:164:        
+self.assertEqual(text.normalize_newlines(lazystr("abc\ndef\rghi\r\n")), 
+"abc\ndef\nghi\n")
+tests/validators/tests.py:87:    # Trailing newlines in username or domain not 
+allowed
+tests/validators/tests.py:108:    (validate_slug, 'trailing-newline\n', 
+ValidationError),
+tests/validators/tests.py:125:    (validate_unicode_slug, 'trailing-newline\n', 
+ValidationError),
+tests/validators/tests.py:225:    # Trailing newlines not accepted
+tests/view_tests/tests/test_debug.py:328:        for newline in ['\n', '\r\n', 
+'\r']:
+tests/view_tests/tests/test_debug.py:330:            os.write(fd, 
+(newline.join(LINES) + newline).encode())
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 12, $0.03):
+I will check lines in `tests/validators/tests.py`.
+
+```
+sed -n '105,130p' tests/validators/tests.py
+```
+
+Tool:
+<returncode>
+0
+<output>
+    (validate_slug, '你好', ValidationError),
+    (validate_slug, '你 好', ValidationError),
+    (validate_slug, '\n', ValidationError),
+    (validate_slug, 'trailing-newline\n', ValidationError),
+
+    (validate_unicode_slug, 'slug-ok', None),
+    (validate_unicode_slug, 'longer-slug-still-ok', None),
+    (validate_unicode_slug, '--------', None),
+    (validate_unicode_slug, 'nohyphensoranything', None),
+    (validate_unicode_slug, 'a', None),
+    (validate_unicode_slug, '1', None),
+    (validate_unicode_slug, 'a1', None),
+    (validate_unicode_slug, '你好', None),
+
+    (validate_unicode_slug, '', ValidationError),
+    (validate_unicode_slug, ' text ', ValidationError),
+    (validate_unicode_slug, ' ', ValidationError),
+    (validate_unicode_slug, 'some@mail.com', ValidationError),
+    (validate_unicode_slug, '\n', ValidationError),
+    (validate_unicode_slug, '你 好', ValidationError),
+    (validate_unicode_slug, 'trailing-newline\n', ValidationError),
+
+    (validate_ipv4_address, '1.1.1.1', None),
+    (validate_ipv4_address, '255.0.0.0', None),
+    (validate_ipv4_address, '0.0.0.0', None),
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 13, $0.04):
+I will check lines around 225 in `tests/validators/tests.py`.
+
+```
+sed -n '220,235p' tests/validators/tests.py
+```
+
+Tool:
+<returncode>
+0
+<output>
+    (URLValidator(EXTENDED_SCHEMES), 'file://localhost/path', None),
+    (URLValidator(EXTENDED_SCHEMES), 'git://example.com/', None),
+    (URLValidator(EXTENDED_SCHEMES), 
+'git+ssh://git@github.com/example/hg-git.git', None),
+
+    (URLValidator(EXTENDED_SCHEMES), 'git://-invalid.com', ValidationError),
+    # Trailing newlines not accepted
+    (URLValidator(), 'http://www.djangoproject.com/\n', ValidationError),
+    (URLValidator(), 'http://[::ffff:192.9.5.5]\n', ValidationError),
+    # Trailing junk does not take forever to reject
+    (URLValidator(), 'http://www.asdasdasdasdsadfm.com.br ', ValidationError),
+    (URLValidator(), 'http://www.asdasdasdasdsadfm.com.br z', ValidationError),
+
+    (BaseValidator(True), True, None),
+    (BaseValidator(True), False, ValidationError),
+
+    (RegexValidator(), '', None),
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 14, $0.04):
+I will view lines 393-410 of `docs/ref/contrib/auth.txt`.
+
+```
+sed -n '393,415p' docs/ref/contrib/auth.txt
+```
+
+Tool:
+<returncode>
+0
+<output>
+Validators
+==========
+
+.. class:: validators.ASCIIUsernameValidator
+
+    A field validator allowing only ASCII letters and numbers, in addition to
+    ``@``, ``.``, ``+``, ``-``, and ``_``.
+
+.. class:: validators.UnicodeUsernameValidator
+
+    A field validator allowing Unicode characters, in addition to ``@``, ``.``,
+    ``+``, ``-``, and ``_``. The default validator for ``User.username``.
+
+.. _topics-auth-signals:
+
+Login and logout signals
+========================
+
+.. module:: django.contrib.auth.signals
+
+The auth framework uses the following :doc:`signals </topics/signals>` that
+can be used for notification when a user logs in or out.
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 15, $0.05):
+I will test the current behavior of `UnicodeUsernameValidator` and 
+`ASCIIUsernameValidator` with trailing newlines.
+
+```
+python3 -c "
+from django.contrib.auth import validators
+try:
+    validators.ASCIIUsernameValidator()('glenn\n')
+    print('ASCII allowed glenn\\\\n')
+except Exception as e:
+    print('ASCII rejected:', e)
+
+try:
+    validators.UnicodeUsernameValidator()('joe\n')
+    print('Unicode allowed joe\\\\n')
+except Exception as e:
+    print('Unicode rejected:', e)
+"
+```
+
+Tool:
+<returncode>
+1
+<output>
+Traceback (most recent call last):
+  File "<string>", line 2, in <module>
+  File "/testbed/django/contrib/auth/__init__.py", line 7, in <module>
+    from django.middleware.csrf import rotate_token
+  File "/testbed/django/middleware/csrf.py", line 14, in <module>
+    from django.urls import get_callable
+  File "/testbed/django/urls/__init__.py", line 1, in <module>
+    from .base import (
+  File "/testbed/django/urls/base.py", line 8, in <module>
+    from .exceptions import NoReverseMatch, Resolver404
+  File "/testbed/django/urls/exceptions.py", line 1, in <module>
+    from django.http import Http404
+  File "/testbed/django/http/__init__.py", line 5, in <module>
+    from django.http.response import (
+  File "/testbed/django/http/response.py", line 15, in <module>
+    from django.core.serializers.json import DjangoJSONEncoder
+  File "/testbed/django/core/serializers/__init__.py", line 23, in <module>
+    from django.core.serializers.base import SerializerDoesNotExist
+  File "/testbed/django/core/serializers/base.py", line 7, in <module>
+    from django.db import models
+  File "/testbed/django/db/models/__init__.py", line 3, in <module>
+    from django.db.models.aggregates import *  # NOQA
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/testbed/django/db/models/aggregates.py", line 5, in <module>
+    from django.db.models.expressions import Case, Func, Star, When
+  File "/testbed/django/db/models/expressions.py", line 8, in <module>
+    from django.db.models import fields
+  File "/testbed/django/db/models/fields/__init__.py", line 11, in <module>
+    from django import forms
+  File "/testbed/django/forms/__init__.py", line 6, in <module>
+    from django.forms.boundfield import *  # NOQA
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/testbed/django/forms/boundfield.py", line 3, in <module>
+    from django.forms.utils import flatatt, pretty_name
+  File "/testbed/django/forms/utils.py", line 6, in <module>
+    from django.utils import timezone
+  File "/testbed/django/utils/timezone.py", line 11, in <module>
+    import pytz
+ModuleNotFoundError: No module named 'pytz'
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 16, $0.05):
+I will check which python environments are available.
+
+```
+which python; which python3; find / -name "pytest" 2>/dev/null; env
+```
+
+Tool:
+<returncode>
+0
+<output>
+/opt/miniconda3/bin/python
+/opt/miniconda3/bin/python3
+HOSTNAME=30c2ebb22d3f
+SHLVL=0
+HOME=/root
+LESS=-R
+PAGER=cat
+LC_CTYPE=C.UTF-8
+PIP_PROGRESS_BAR=off
+_=/root/.local/bin/mini-swe-agent
+MSWEA_COST_TRACKING=ignore_errors
+PATH=/root/.local/bin:/opt/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sb
+in:/usr/bin:/sbin:/bin
+TIKTOKEN_CACHE_DIR=/root/.local/share/uv/tools/mini-swe-agent/lib/python3.12/sit
+e-packages/litellm/litellm_core_utils/tokenizers
+MANPAGER=cat
+TQDM_DISABLE=1
+MSWEA_CONFIGURED=true
+PWD=/testbed
+GEMINI_API_KEY=[REDACTED]
+TZ=Etc/UTC
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 17, $0.05):
+I will check conda environments.
+
+```
+conda env list
+```
+
+Tool:
+<returncode>
+0
+<output>
+# conda environments:
+#
+base                     /opt/miniconda3
+testbed                  /opt/miniconda3/envs/testbed
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 18, $0.06):
+I will test running python from the testbed environment.
+
+```
+/opt/miniconda3/envs/testbed/bin/python -c "
+from django.contrib.auth import validators
+try:
+    validators.ASCIIUsernameValidator()('glenn\n')
+    print('ASCII allowed glenn\\n')
+except Exception as e:
+    print('ASCII rejected:', e)
+
+try:
+    validators.UnicodeUsernameValidator()('joe\n')
+    print('Unicode allowed joe\\n')
+except Exception as e:
+    print('Unicode rejected:', e)
+"
+```
+
+Tool:
+<returncode>
+0
+<output>
+ASCII allowed glenn
+
+Unicode allowed joe
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 19, $0.06):
+I will run the auth_tests test suite using `runtests.py`.
+
+```
+/opt/miniconda3/envs/testbed/bin/python tests/runtests.py 
+auth_tests.test_validators
+```
+
+Tool:
+<returncode>
+0
+<output>
+Testing against Django installed in '/testbed/django' with up to 8 processes
+System check identified no issues (0 silenced).
+Creating test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+......................
+----------------------------------------------------------------------
+Ran 22 tests in 0.808s
+
+OK
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 20, $0.06):
+I will search the git history for `\A` in django.
+
+```
+git log -S "\\A" --oneline
+```
+
+Tool:
+<returncode>
+0
+<output>
+26bb2611a5 Fixed #29952 -- Lowercased all passwords in contrib.auth's 
+auth/common-passwords.txt.gz.
+fb5dfd53a7 Fixed #29832 -- Updated Roboto font to v2.137.
+033d842e84 Updated translations from Transifex
+287fef8693 Updated contrib translations from Transifex
+7b407c9e94 Updated core translations from Transifex
+93331877c8 Fixed #29274 -- Increased the number of common passwords from 1k to 
+20k.
+75527c0f83 Updated translations from Transifex
+37c17846ad Fixed #28343 -- Add an OS chooser for docs command line examples.
+b36ed9bf92  Updated core translations from Transifex
+afe4edb4ea Updated core translations from Transifex
+63bf615d5e Updated translations from Transifex
+4ef0e019b7 Fixed #27083 -- Added support for weak ETags.
+b40d24960c Fixed #27115 -- Corrected a screenshot in the tutorial.
+374b6091ac Pulled contrib translations from Transifex
+07290211ff Pulled core Django translations from Transifex
+8dcf352c03 Pulled translations from Transifex
+273ce8aa6a Pulled contrib translations from Transifex
+0c37bae189 Pulled core Django translations from Transifex
+35440ceab7 Optimized docs images and documented the process.
+6e8ddbaa25 Fixed #25200 -- Updated admin screenshots in docs.
+b929d2d09d Fixed #25200 -- Updated tutorial screenshots for new admin theme.
+35901e64b0 Fixed #24444 -- Updated contrib.admin to use django-flat-theme
+c005a6620e Optimise the rest of the PNGs in docs
+44eef25463 Optimise tutorial images
+3653466bdf Fixed #24732 -- Reordered tutorial to cover basics before bells and 
+whistles.
+7dad681e2e Fetched updated core translations from Transifex
+d6a15026c4 Updated translations from Transifex
+efa67b897b Fetched translations from Transifex
+d34b94b00f Fixed #20876 -- Changed Poll model name in tutorial to Question
+ab76467d54 Added Ossetic language
+87cc3da814 Merged contrib translations from 1.5 branch
+6ca475d540 Merged core translations from 1.5 branch
+3f1c7b7053 Simplified default project template.
+9d62220e00 Fixed #15516 -- Updated the ticket life cycle diagram.
+ae8e97384b Fixed #12502 -- Improved middleware diagram.
+39541be3bc Fixed #18581 - Updated admin actions screenshots. Thanks Kevin 
+London.
+45284a90a5 Fixed #17929 -- Improved tutorial wording and capitalization.
+6e76389c22 Pulled localflavor translations updates from Transifex. Refs #17822.
+a63be60b1d Pulled the localflavor translations updates from Transifex. Refs 
+#17822.
+f8446024bc Pulled the core translations updates from Transifex. Refs #17822.
+e0d78f898f Fixed #17715 -- Updated the tutorial for time zone support, plus a 
+few other improvements.
+b039bd3fb0 Fixed #16618 -- Corrected the admin interface's breadcrumbs in the 
+tutorials' screenshots. Many thanks to Claude Paroz.
+e5ccf0b9ba Pulled localflavor translation updates from Transifex.
+0b468d79b0 Pulled core translation updates from Transifex.
+d38bce59ae Updated localflavor translations from transifex.net. Refs #15300.
+8a94108110 Fixed #15300 -- Updated core translations from transifex.net.
+de8565e1c4 Removed app translation strings from core translation files.
+7be43c910a Added new translation files to localflavor contrib app.
+afa4c5ac60 Fixed #10615 - Added selection counter to admin change list. Thanks 
+to Martin Mahner for the idea and initial patch.
+6e2fe421d5 Fixed #11507 -- Updated Bengali translation. Thanks to Nasimul Haque.
+507e07e58e Fixed #11323 -- Updated Korean translation. Thanks to Hyun Mi Ae and 
+Joongi Kim.
+5727374d95 Fixed #11348 -- Trimmed the width of a screenshot image in the admin 
+docs. Thanks to smcoll for the new image.
+44f3080226 Fixed #10505: added support for bulk admin actions, including a 
+globally-available "delete selected" action. See the documentation for details.
+587d3d7f79 Closes #8755, Updated Turkish translation. Thanks Metin Amiroff.
+e3df35478d Converted some images in the docs that claimed to be PNGs, but 
+weren't.
+97cb07c3a1 Massive reorganization of the docs. See the new docs online at 
+http://docs.djangoproject.com/.
+aa63190d0b Closes #7607, Turkish translation update, thanks Evren Esat Özkan
+d2c45bacd2 Fixed #4753 -- Updated Spanish translation. Also move translators' 
+names out of PO file and into AUTHORS.
+962fe47321 Fixed #4672 -- Updated Slovak translation. Thanks, vlado@labath.org.
+8d3b587012 Fixed #4383 -- Updated Catalan translation. Thanks, Marc Fargas.
+fd21702b2e Fixed #4347 -- Updated Catalan translation. Thanks, Marc Fargas.
+37e4842661 Fixed #4138 -- Updated Korean translation. Thanks, Sung-Jin Hong.
+f5d4731a00 Fixed #3912 -- Updated Slovak translation. Thanks Martin Kosír.
+4b4d1af660 Fixed #3932 -- Updated Spanish translation. Thanks, 
+gomo@datafull.com.
+6f19ce8832 Fixed #3673 -- Updated Telugu translation. Thanks Pavithran.
+20a240cf51 Fixed #3673 -- Added new Telugu (te) localisation. Thanks, pavithran 
+s.
+91ad769d92 Fixed #3535 -- Updated Serbian (sr) translations. Thanks Petar Marić 
+and Nesh.
+a8455bba92 updated translation files - new message IDs from magic removal
+9869a8ed31 Fixed #1806 -- Updated ja translation. Thanks, mtsuyuki@gmail.com
+ba8f23424b fixed #1333 - updated 'ja' translations
+946b1a5cd2 fixed #1228 - updated 'sr' translation
+d3b85e30d3 fixes #1166 - updated 'zh_CN' translation
+7337fe4900 added japanese and traditional chinese to the languages list in the 
+global settings (and updated message files)
+328836208c added a missed translation to the admin (the error message when you 
+try to add a duplicate record)
+6e13e65568 fixes #1025 - updated 'sk' translation
+f9941eca03 fixes #1005 - updated 'sk' translation
+9aa1235779 fixes #997 - updated 'sr' translation
+2565d41fb5 fixes #991 - updated 'sv' translations
+4040b99b5c fixes #990 - updated 'zh_CN' translation
+a841530a13 first take at admin JavaScript translation - translation hooks for 
+the calendar and time picker are added and the german translation is updated
+cf84ba3b81 added translation hooks to timesince and updated message files to 
+reflect them (and updated the 'de' translation). Additionally some smallish code
+changes to timesince (that weird zip thingy was just scary - and there is no 
+need to .floor an integer division)
+f7d619e4b9 Removed images from docs in favor of absolute urls
+07ffc7d605 Imported fledgeling Django documentation from private SVN repository
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 21, $0.07):
+I will inspect commit 4ef0e019b7.
+
+```
+git show 4ef0e019b7 django/utils/http.py
+```
+
+Tool:
+<returncode>
+0
+<output>
+commit 4ef0e019b7dd3d2bf93b5c705b3b7df9cdb77561
+Author: Kevin Christopher Henry <k@severian.com>
+Date:   Thu Sep 1 09:32:20 2016 -0400
+
+    Fixed #27083 -- Added support for weak ETags.
+
+diff --git a/django/utils/http.py b/django/utils/http.py
+index c6285e6f40..cba2a08095 100644
+--- a/django/utils/http.py
++++ b/django/utils/http.py
+@@ -21,7 +21,15 @@ from django.utils.six.moves.urllib.parse import (
+     urlparse,
+ )
+ 
+-ETAG_MATCH = re.compile(r'(?:W/)?"((?:\\.|[^"])*)"')
++# based on RFC 7232, Appendix C
++ETAG_MATCH = re.compile(r'''
++    \A(      # start of string and capture group
++    (?:W/)?  # optional weak indicator
++    "        # opening quote
++    [^"]*    # any sequence of non-quote characters
++    "        # end quote
++    )\Z      # end of string and capture group
++''', re.X)
+ 
+ MONTHS = 'jan feb mar apr may jun jul aug sep oct nov dec'.split()
+ __D = r'(?P<day>\d{2})'
+@@ -234,30 +242,27 @@ def urlsafe_base64_decode(s):
+ 
+ def parse_etags(etag_str):
+     """
+-    Parses a string with one or several etags passed in If-None-Match and
+-    If-Match headers by the rules in RFC 2616. Returns a list of etags
+-    without surrounding double quotes (") and unescaped from \<CHAR>.
++    Parse a string of ETags given in an If-None-Match or If-Match header as
++    defined by RFC 7232. Return a list of quoted ETags, or ['*'] if all ETags
++    should be matched.
+     """
+-    etags = ETAG_MATCH.findall(etag_str)
+-    if not etags:
+-        # etag_str has wrong format, treat it as an opaque string then
+-        return [etag_str]
+-    etags = [e.encode('ascii').decode('unicode_escape') for e in etags]
+-    return etags
+-
+-
+-def quote_etag(etag):
+-    """
+-    Wraps a string in double quotes escaping contents as necessary.
+-    """
+-    return '"%s"' % etag.replace('\\', '\\\\').replace('"', '\\"')
++    if etag_str.strip() == '*':
++        return ['*']
++    else:
++        # Parse each ETag individually, and return any that are valid.
++        etag_matches = (ETAG_MATCH.match(etag.strip()) for etag in 
+etag_str.split(','))
++        return [match.group(1) for match in etag_matches if match]
+ 
+ 
+-def unquote_etag(etag):
++def quote_etag(etag_str):
+     """
+-    Unquote an ETag string; i.e. revert quote_etag().
++    If the provided string is already a quoted ETag, return it. Otherwise, wrap
++    the string in quotes, making it a strong ETag.
+     """
+-    return etag.strip('"').replace('\\"', '"').replace('\\\\', '\\') if etag 
+else etag
++    if ETAG_MATCH.match(etag_str):
++        return etag_str
++    else:
++        return '"%s"' % etag_str
+ 
+ 
+ def is_same_domain(host, pattern):
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 22, $0.07):
+I will search git log for username validator commits.
+
+```
+git log --grep="UsernameValidator" --oneline
+```
+
+Tool:
+<returncode>
+0
+<output>
+14172cf442 Fixed #28415 -- Clarified what characters 
+ASCII/UnicodeUsernameValidator accept.
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 23, $0.08):
+I will check commit 14172cf442.
+
+```
+git show 14172cf442
+```
+
+Tool:
+<returncode>
+0
+<output>
+commit 14172cf4426de6c867028f1c194011c0a26e662d
+Author: Tim Graham <timograham@gmail.com>
+Date:   Thu Jul 27 08:42:01 2017 -0400
+
+    Fixed #28415 -- Clarified what characters ASCII/UnicodeUsernameValidator 
+accept.
+
+diff --git a/docs/ref/contrib/auth.txt b/docs/ref/contrib/auth.txt
+index 31c8641bb2..b4b407272a 100644
+--- a/docs/ref/contrib/auth.txt
++++ b/docs/ref/contrib/auth.txt
+@@ -34,12 +34,12 @@ Fields
+ 
+         .. admonition:: Usernames and Unicode
+ 
+-            Django originally accepted only ASCII letters in usernames.
+-            Although it wasn't a deliberate choice, Unicode characters have
+-            always been accepted when using Python 3. Django 1.10 officially
+-            added Unicode support in usernames, keeping the ASCII-only behavior
+-            on Python 2, with the option to customize the behavior using
+-            :attr:`.User.username_validator`.
++            Django originally accepted only ASCII letters and numbers in
++            usernames. Although it wasn't a deliberate choice, Unicode
++            characters have always been accepted when using Python 3. Django
++            1.10 officially added Unicode support in usernames, keeping the
++            ASCII-only behavior on Python 2, with the option to customize the
++            behavior using :attr:`.User.username_validator`.
+ 
+     .. attribute:: first_name
+ 
+@@ -395,12 +395,12 @@ Validators
+ 
+ .. class:: validators.ASCIIUsernameValidator
+ 
+-    A field validator allowing only ASCII letters, in addition to ``@``, ``.``,
+-    ``+``, ``-``, and ``_``.
++    A field validator allowing only ASCII letters and numbers, in addition to
++    ``@``, ``.``, ``+``, ``-``, and ``_``.
+ 
+ .. class:: validators.UnicodeUsernameValidator
+ 
+-    A field validator allowing Unicode letters, in addition to ``@``, ``.``,
++    A field validator allowing Unicode characters, in addition to ``@``, ``.``,
+     ``+``, ``-``, and ``_``. The default validator for ``User.username``.
+ 
+ .. _topics-auth-signals:
+diff --git a/docs/releases/1.10.txt b/docs/releases/1.10.txt
+index 444a827898..5be4065d59 100644
+--- a/docs/releases/1.10.txt
++++ b/docs/releases/1.10.txt
+@@ -55,11 +55,11 @@ Official support for Unicode usernames
+ --------------------------------------
+ 
+ The :class:`~django.contrib.auth.models.User` model in ``django.contrib.auth``
+-originally only accepted ASCII letters in usernames. Although it wasn't a
+-deliberate choice, Unicode characters have always been accepted when using
+-Python 3.
++originally only accepted ASCII letters and numbers in usernames. Although it
++wasn't a deliberate choice, Unicode characters have always been accepted when
++using Python 3.
+ 
+-The username validator now explicitly accepts Unicode letters by
++The username validator now explicitly accepts Unicode characters by
+ default on Python 3 only. This default behavior can be overridden by changing
+ the :attr:`~django.contrib.auth.models.User.username_validator` attribute of
+ the ``User`` model, or to any proxy of that model, using either
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 24, $0.08):
+I will check the implementation of `RegexValidator` in 
+`django/core/validators.py`.
+
+```
+sed -n '15,65p' django/core/validators.py
+```
+
+Tool:
+<returncode>
+0
+<output>
+
+def _lazy_re_compile(regex, flags=0):
+    """Lazily compile a regex with flags."""
+    def _compile():
+        # Compile the regex if it was not passed pre-compiled.
+        if isinstance(regex, str):
+            return re.compile(regex, flags)
+        else:
+            assert not flags, "flags must be empty if regex is passed 
+pre-compiled"
+            return regex
+    return SimpleLazyObject(_compile)
+
+
+@deconstructible
+class RegexValidator:
+    regex = ''
+    message = _('Enter a valid value.')
+    code = 'invalid'
+    inverse_match = False
+    flags = 0
+
+    def __init__(self, regex=None, message=None, code=None, inverse_match=None, 
+flags=None):
+        if regex is not None:
+            self.regex = regex
+        if message is not None:
+            self.message = message
+        if code is not None:
+            self.code = code
+        if inverse_match is not None:
+            self.inverse_match = inverse_match
+        if flags is not None:
+            self.flags = flags
+        if self.flags and not isinstance(self.regex, str):
+            raise TypeError("If the flags are set, regex must be a regular 
+expression string.")
+
+        self.regex = _lazy_re_compile(self.regex, self.flags)
+
+    def __call__(self, value):
+        """
+        Validate that the input contains (or does *not* contain, if
+        inverse_match is True) a match for the regular expression.
+        """
+        regex_matches = self.regex.search(str(value))
+        invalid_input = regex_matches if self.inverse_match else not 
+regex_matches
+        if invalid_input:
+            raise ValidationError(self.message, code=self.code)
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, RegexValidator) and
+            self.regex.pattern == other.regex.pattern and
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 25, $0.09):
+I will search for occurrences of `ASCIIUsernameValidator` or 
+`UnicodeUsernameValidator` in migrations and tests.
+
+```
+git grep -n "ASCIIUsernameValidator"
+```
+
+Tool:
+<returncode>
+0
+<output>
+django/contrib/auth/validators.py:9:class 
+ASCIIUsernameValidator(validators.RegexValidator):
+docs/ref/contrib/auth.txt:150:            from django.contrib.auth.validators 
+import ASCIIUsernameValidator
+docs/ref/contrib/auth.txt:153:                username_validator = 
+ASCIIUsernameValidator()
+docs/ref/contrib/auth.txt:396:.. class:: validators.ASCIIUsernameValidator
+docs/releases/1.10.txt:66::class:`~django.contrib.auth.validators.ASCIIUsernameV
+alidator` or
+tests/auth_tests/test_validators.py:254:        v = 
+validators.ASCIIUsernameValidator()
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 26, $0.09):
+I will search for `UnicodeUsernameValidator`.
+
+```
+git grep -n "UnicodeUsernameValidator"
+```
+
+Tool:
+<returncode>
+0
+<output>
+django/contrib/auth/migrations/0001_initial.py:66:                    
+validators=[validators.UnicodeUsernameValidator()],
+django/contrib/auth/migrations/0004_alter_user_username_opts.py:18:             
+validators=[validators.UnicodeUsernameValidator()],
+django/contrib/auth/migrations/0007_alter_validators_add_error_messages.py:20:  
+validators=[validators.UnicodeUsernameValidator()],
+django/contrib/auth/migrations/0008_alter_user_username_max_length.py:20:       
+validators=[validators.UnicodeUsernameValidator()],
+django/contrib/auth/models.py:11:from .validators import 
+UnicodeUsernameValidator
+django/contrib/auth/models.py:292:    username_validator = 
+UnicodeUsernameValidator()
+django/contrib/auth/validators.py:19:class 
+UnicodeUsernameValidator(validators.RegexValidator):
+docs/ref/contrib/auth.txt:143:        
+:class:`validators.UnicodeUsernameValidator`.
+docs/ref/contrib/auth.txt:401:.. class:: validators.UnicodeUsernameValidator
+docs/releases/1.10.txt:67::class:`~django.contrib.auth.validators.UnicodeUsernam
+eValidator`. Custom user
+tests/auth_tests/test_validators.py:242:        v = 
+validators.UnicodeUsernameValidator()
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 27, $0.10):
+I will test deconstruct on `UnicodeUsernameValidator`.
+
+```
+/opt/miniconda3/envs/testbed/bin/python -c "
+from django.contrib.auth.validators import UnicodeUsernameValidator
+v = UnicodeUsernameValidator()
+print(v.deconstruct())
+"
+```
+
+Tool:
+<returncode>
+0
+<output>
+('django.contrib.auth.validators.UnicodeUsernameValidator', (), {})
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 28, $0.10):
+I will check if makemigrations runs cleanly.
+
+```
+/opt/miniconda3/envs/testbed/bin/python tests/runtests.py --check-migrations
+```
+
+Tool:
+<returncode>
+2
+<output>
+usage: runtests.py [-h] [-v {0,1,2,3}] [--noinput] [--failfast] [-k]
+                   [--settings SETTINGS] [--bisect BISECT] [--pair PAIR]
+                   [--reverse] [--selenium BROWSERS]
+                   [--selenium-hub SELENIUM_HUB]
+                   [--external-host EXTERNAL_HOST] [--debug-sql]
+                   [--parallel [N]] [--tag TAGS] [--exclude-tag EXCLUDE_TAGS]
+                   [module [module ...]]
+runtests.py: error: unrecognized arguments: --check-migrations
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 29, $0.11):
+I will run migrations tests to see if any tests fail.
+
+```
+/opt/miniconda3/envs/testbed/bin/python tests/runtests.py migrations
+```
+
+Tool:
+<returncode>
+0
+<output>
+Testing against Django installed in '/testbed/django' with up to 8 processes
+System check identified no issues (0 silenced).
+Creating test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Creating test database for alias 'other'...
+Cloning test database for alias 'other'...
+Cloning test database for alias 'other'...
+Cloning test database for alias 'other'...
+Cloning test database for alias 'other'...
+Cloning test database for alias 'other'...
+Cloning test database for alias 'other'...
+Cloning test database for alias 'other'...
+Cloning test database for alias 'other'...
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+............................
+----------------------------------------------------------------------
+Ran 508 tests in 7.676s
+
+OK
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 30, $0.11):
+I will search git log for commits mentioning validators and newlines.
+
+```
+git log --grep="newline" --grep="validators" -i --oneline
+```
+
+Tool:
+<returncode>
+0
+<output_head>
+7a6dbbb655 Added import locations to contrib.postgres aggregates and validators 
+docs.
+8c70ba92dd Refactored validators tests to use subtests.
+3fa3de5415 Fixed #29646 -- Doc'd the validators that each model and form field 
+uses.
+f903669dfd Fixed argument name for validators inheriting from BaseValidator.
+46b3e3ffdc Fixed #29065 -- Made django.core.validators only load Pillow if 
+needed.
+2cb6b7732d Fixed #28902 -- Fixed password_validators_help_text_html() double 
+escaping.
+e014f91a70 Fixed #28890 -- Removed newlines between MultiWidget's subwidgets.
+4f5526e346 Fixed #28773 -- Forced pot files to use UNIX-style newlines
+3e7497a05e Fixed #28758 -- Fixed RangeMax/MinValueValidators crash with unbound 
+ranges.
+773c7888d4 Added newline at end of docs/faq/index.txt.
+a452dddb25 Fixed #27904 -- Added a system check that Field.validators are 
+callable.
+12cefee5d8 Refs #15667 -- Prevented newlines in attrs.html widget rendering.
+536db42cf0 Fixed #26097 -- Added password_validators_help_text_html to 
+UserCreationForm.
+796cc62026 Fixed #27045 -- Documented that AUTH_PASSWORD_VALIDATORS aren't 
+applied at the model level.
+49b4596cb4 Fixed #26786 -- Avoided redundant max value validators on integer 
+fields.
+6ab0d1358f Fixed #26645 -- Fixed potential makemessages failures on Windows.
+546649f2d6 Fixed some newlines in imports per isort.
+526575c641 Fixed #21379 -- Created auth-specific username validators
+a885bca1df Fixed #26528 -- Allowed any iterable (e.g. tuple) as validators kwarg
+for form/model fields.
+53ccffdb8c Refs #16860 -- Fixed password help text when there aren't any 
+validators.
+2bb1027d6b Fixed #25322 -- Lazily compiled core.validators regular expressions.
+014247ad19 Prevented newlines from being accepted in some validators.
+3b81dbe844 Used %r in the TextNode repr to show newlines better.
+20c6ba6ffa Fixed #24962 -- Added newline to characters escaped by 
+contrib.admin.utils.quote()
+f4cc0c40a8 Added some missing newlines in docs/ref/validators.txt.
+c490e410af Fixed #24373 -- Added run_validators to ArrayField.
+efb1f99f94 Fixed #20889 -- Prevented BadHeaderError when Python inserts newline
+67a76500a5 Removed support for admin validators per deprecation timeline; refs 
+#16905.
+48ad288679 Fixed #24001 -- Added range fields for PostgreSQL.
+e08318b4ef Refs #23359 -- Removed double newline from output of migrate --list
+a37f452513 Removed superfluous newline.
+eb4f6de980 Fixed #8149 -- Made File.__iter__() support universal newlines.
+c692e37b63 Fixed #22959 -- Documented that class-based validators need to be 
+deconstructible.
+d38a00332e Updated tests for added newlines in 
+68686430638215b5405b20bd767c0be392c9221d.
+6868643063 Added newlines to the ends of CSS, HTML, and JavaScript files missing
+them.
+037f81fedc Added a newline to appease flake8
+b48c2c5925 Removed extra newline.
+011abb7d96 Fixed #19671 -- Added warnings that null and validators are ignored 
+for ManyToManyField.
+5e9773269a Added newline to fix flake8 error.
+eae4f16177 Removed doc newlines added in previous commit that caused build 
+errors.
+f732d55dfc Added newline for flake8.
+8482ab6633 Removed some stray newlines which caused flake8 issues
+a68f325791 Fixed #21638: Validators are now comparable, stops infinite user 
+mig'ns
+ac8d0a4815 Remove unneded open(.., 'U') when on python 3.
+4e7aa573ec Added missing newline in previous commit.
+2c837233f5 Fixed #21574 -- Handle bytes consistently in 
+utils.text.normalize_newlines.
+a7cf48a2b7 Fixed #21573 -- Improved performance of 
+utils.text.normalize_newlines.
+e7dcd40da2 Added extra newline for flake8.
+6d20a80d98 Merge pull request #2045 from vajrasky/ticket_21572
+a1a26690b9 Fixed #21572 -- Added unit test for 
+django.utils.text.normalize_newlines.
+ccd11c09c3 Flake8 fix -- correct number of newlines between top level 
+definitions
+7a7c789d5a Fixed #5849 -- Strip whitespace from blocktrans
+382d324ccc Added missing newline in docstring; refs #20945.
+1dae4ac177 Whitespace cleanup.
+98e0453f00 Fixed #21120 -- Added more explicit text on using validators and link
+to writing validators.
+6dca603abb Fixed #20889 -- Prevented email.Header from inserting newlines
+78f66691ee Fixed #8627 -- Prevented textareas to swallow first newline content
+8cb9968a91 Moved some email validation tests to validators tests
+a8f888feb4 Improved assertion error messages in validators tests
+89b57a7c77 Added missing newline to makemessages output. Thanks Florian 
+Apolloner for report and patch.
+995f7a16a8 Fixed #17281 -- Prevented `AdminErrorHandler` from silently failing 
+if the log message contains newlines. Thanks to Russell Keith-Magee for the 
+report and to Bartolome Sanchez Salado and Marcin Wróbel for the patch.
+9c045d00dc Fixed #14184 -- Enabled running the validators in MultiValueFields. 
+Thanks, paulcollins.
+1572a3d4b2 Fixed #10931 -- Made `Truncator` handle newlines properly. Thanks to 
+gsong and Claude Paroz.
+7a718f0f3a Fixed #17127 -- Made field validators list independent per form 
+instance. Thanks claudep for report and patch.
+343b4f1ea5 Fixed #14288 -- Fixed l
+<output_tail>
+866f7 Added missing module directive for validators documentation.
+2f279ec595 Fixed #13341 -- Clarified the arguments to RegexValidators. Thanks to
+DrMeers for the report, and David Fischer for the draft text.
+f9c8615e1f Fixed #12799 -- Added an extra newline to help with PDF generation of
+documentation. Thanks to Ivan Savov for the report.
+86f283d4ca Fixed #12590. Changed an expression in the validators tests to work 
+correctly with python 2.4. Thanks, ramiro.
+379ffbc1da Fixed #12525. Added a note to the validators doucmentation that 
+models will not automatically run validators when saved, and a link to the 
+ModelForm docs.
+6e756a3c10 Added __init__.py and models.py so tests for validators will actually
+run.
+6629d1e89b Edited docs/ref/validators.txt
+5b97a7b11b Fixed a typo in ref/validators.txt.
+cd7da17132 Added a section to the docs for discussing validators and updated a 
+few links to point to it.
+89df572c47 Fixed #11274 -- Corrected doctests to not cause test failures due to 
+missing newlines. Thanks Honza Kral.
+155ab07a5d Fixed #10188: prevent newlines in HTTP headers. Thanks, bthomas.
+c2ba59fc1d Removed oldforms, validators, and related code:  * Removed 
+`Manipulator`, `AutomaticManipulator`, and related classes.  * Removed oldforms 
+specific bits from model fields:    * Removed `validator_list` and `core` 
+arguments from constructors.    * Removed the methods:      * 
+`get_manipulator_field_names`      * `get_manipulator_field_objs`      * 
+`get_manipulator_fields`      * `get_manipulator_new_data`      * 
+`prepare_field_objs_and_params`      * `get_follow`    * Renamed `flatten_data` 
+method to `value_to_string` for better alignment with its use by the 
+serialization framework, which was the only remaining code using `flatten_data`.
+* Removed oldforms methods from `django.db.models.Options` class: 
+`get_followed_related_objects`, `get_data_holders`, `get_follow`, and 
+`has_field_type`.  * Removed oldforms-admin specific options from 
+`django.db.models.fields.related` classes: `num_in_admin`, `min_num_in_admin`, 
+`max_num_in_admin`, `num_extra_on_change`, and `edit_inline`.  * Serialization 
+framework    * `Serializer.get_string_value` now calls the model fields' renamed
+`value_to_string` methods.    * Removed a special-casing of 
+`models.DateTimeField` in `core.serializers.base.Serializer.get_string_value` 
+that's handled by `django.db.models.fields.DateTimeField.value_to_string`.  * 
+Removed `django.core.validators`:    * Moved `ValidationError` exception to 
+`django.core.exceptions`.    * For the couple places that were using validators,
+brought over the necessary code to maintain the same functionality.  * 
+Introduced a SlugField form field for validation and to compliment the SlugField
+model field (refs #8040).  * Removed an oldforms-style model creation hack (refs
+#2160).
+58a68723b3 Changed a couple of old-style validators to remove some deprecation 
+warnings when using ImageFields, etc, in the admin interface. Cosmetic only. 
+Refs #7608.
+3c733bb690 Fixed #5071 -- Fixed 'global name ugettext is not defined' error in 
+django.core.validators. Thanks, Marco Bonetti
+95d19384c0 Fixes #2993, Refs #2918 -- Reverted [3960]; [3960] fixed a potential 
+data validation problem for SQLite, but broke usage of LazyDate. The proper fix 
+is to complete the model validators to catch _all_ invalid inputs.
+4d596a1f64 Added django.newforms -- work-in-progress of the new framework for 
+forms/validators/manipulators
+5a9839c547 Fixes #2653 -- Modified related field utility methods to return None 
+as the related name for symmetrical m2m fields on self. Updated validators and 
+unit tests to account for the new behavior.
+a55fa029f7 Fixed #1767 -- boolean fields may now have validators!  Thanks, 
+Joseph.
+3e97535907 Fixed #2161 -- handle trailing newlines in initial SQL data. Includes
+regression test. Thanks to russellm.
+d8b4d29004 Improved url_re in django.core.validators to accept https. Thanks, 
+Eric Hsu
+8b5c2192e8 Fixed #1135 -- Changed django.core.mail functions not to allow 
+newlines in headers
+827ebe5368 Converted django/models/__init__.py to use unix newlines, not DOS
+a87d43f809 fixed a bug with some validators that used parameterized gettext_lazy
+strings and forced them to the default language because of the % operator. Now 
+lazy string interpolation is used.
+24f666656f Fixed #737 -- Changed validators.isValidIPAddress4 to use a single 
+regex. Thanks, mattimustang
+8ee33da585 Fixed #734 -- Fixed namespace bug in validators.isValidIPAddress4. 
+Thanks, Hugo and mflanagan
+cd34c163cc Moved JING from django.core.validators into settings where it 
+belongs.  Fixes #568.
+3d426607a8 Fixed #264 -- Added django.core.validators.isValidIPAddress4. Thanks,
+Hugo and Simon
+17418cd982 Added django.core.validators.isValidHTML
+888cf1f889 Fixed #275 -- Bug in validators.RequiredIfOtherFieldsGiven. Thanks, 
+jhernandez
+63eecadfc6 Tightened up some code in django.core.validators
+0c6019295a Refactored django.core.validators.RequiredIfOtherFieldGiven to remove
+duplicate code
+
+<elided_chars>
+759
+<warning>
+Output too long.
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 31, $0.12):
+I will show commit 014247ad19.
+
+```
+git show 014247ad19
+```
+
+Tool:
+<returncode>
+0
+<output_head>
+commit 014247ad1922931a2f17beaf6249247298e9dc44
+Author: Tim Graham <timograham@gmail.com>
+Date:   Fri Jun 12 13:49:31 2015 -0400
+
+    Prevented newlines from being accepted in some validators.
+    
+    This is a security fix; disclosure to follow shortly.
+    
+    Thanks to Sjoerd Job Postmus for the report and draft patch.
+
+diff --git a/django/core/validators.py b/django/core/validators.py
+index 9feb33e8e9..d68533af9d 100644
+--- a/django/core/validators.py
++++ b/django/core/validators.py
+@@ -83,7 +83,7 @@ class URLValidator(RegexValidator):
+         r'(?:' + ipv4_re + '|' + ipv6_re + '|' + host_re + ')'
+         r'(?::\d{2,5})?'  # port
+         r'(?:[/?#][^\s]*)?'  # resource path
+-        r'$', re.IGNORECASE)
++        r'\Z', re.IGNORECASE)
+     message = _('Enter a valid URL.')
+     schemes = ['http', 'https', 'ftp', 'ftps']
+ 
+@@ -125,12 +125,15 @@ class URLValidator(RegexValidator):
+                     raise ValidationError(self.message, code=self.code)
+             url = value
+ 
++integer_validator = RegexValidator(
++    re.compile('^-?\d+\Z'),
++    message=_('Enter a valid integer.'),
++    code='invalid',
++)
++
+ 
+ def validate_integer(value):
+-    try:
+-        int(value)
+-    except (ValueError, TypeError):
+-        raise ValidationError(_('Enter a valid integer.'), code='invalid')
++    return integer_validator(value)
+ 
+ 
+ @deconstructible
+@@ -138,16 +141,16 @@ class EmailValidator(object):
+     message = _('Enter a valid email address.')
+     code = 'invalid'
+     user_regex = re.compile(
+-        r"(^[-!#$%&'*+/=?^_`{}|~0-9A-Z]+(\.[-!#$%&'*+/=?^_`{}|~0-9A-Z]+)*$"  # 
+dot-atom
+-        
+r'|^"([\001-\010\013\014\016-\037!#-\[\]-\177]|\\[\001-\011\013\014\016-\177])*"
+$)',  # quoted-string
++        r"(^[-!#$%&'*+/=?^_`{}|~0-9A-Z]+(\.[-!#$%&'*+/=?^_`{}|~0-9A-Z]+)*\Z"  #
+dot-atom
++        
+r'|^"([\001-\010\013\014\016-\037!#-\[\]-\177]|\\[\001-\011\013\014\016-\177])*"
+\Z)',  # quoted-string
+         re.IGNORECASE)
+     domain_regex = re.compile(
+         # max length for domain name labels is 63 characters per RFC 1034
+-        
+r'((?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+)(?:[A-Z0-9-]{2,63}(?<!-))$',
++        
+r'((?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+)(?:[A-Z0-9-]{2,63}(?<!-))\Z',
+         re.IGNORECASE)
+     literal_regex = re.compile(
+         # literal form, ipv4 or ipv6 address (SMTP 4.1.3)
+-        r'\[([A-f0-9:\.]+)\]$',
++        r'\[([A-f0-9:\.]+)\]\Z',
+         re.IGNORECASE)
+     domain_whitelist = ['localhost']
+ 
+@@ -205,14 +208,14 @@ class EmailValidator(object):
+ 
+ validate_email = EmailValidator()
+ 
+-slug_re = re.compile(r'^[-a-zA-Z0-9_]+$')
++slug_re = re.compile(r'^[-a-zA-Z0-9_]+\Z')
+ validate_slug = RegexValidator(
+     slug_re,
+     _("Enter a valid 'slug' consisting of letters, numbers, underscores or 
+hyphens."),
+     'invalid'
+ )
+ 
+-ipv4_re = 
+re.compile(r'^(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3
+}$')
++ipv4_re = 
+re.compile(r'^(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3
+}\Z')
+ validate_ipv4_address = RegexValidator(ipv4_re, _('Enter a valid IPv4 
+address.'), 'invalid')
+ 
+ 
+@@ -255,7 +258,7 @@ def ip_address_validators(protocol, unpack_ipv4):
+ 
+ 
+ def int_list_validator(sep=',', message=None, code='invalid'):
+-    regexp = re.compile('^\d+(?:%s\d+)*$' % re.escape(sep))
++    regexp = re.compile('^\d+(?:%s\d+)*\Z' % re.escape(sep))
+     return RegexValidator(regexp, message=message, code=code)
+ 
+ 
+diff --git a/docs/releases/1.4.21.txt b/docs/releases/1.4.21.txt
+index da69b26564..5e745e8acc 100644
+--- a/docs/releases/1.4.21.txt
++++ b/docs/releases/1.4.21.txt
+@@ -26,3 +26,29 @@ As each built-in session backend was fixed separately (rather
+than a fix in the
+ core sessions framework), maintainers of third-party session backends should
+ check whether the same vulnerability is present in their backend and correct
+ it if so.
++
++Header injection possibility since validators accept newlines in input
++======================================================================
++
++Some of Django's built-in validators
++(:class:`~django.core.validators.EmailValidator`, most seriously) didn't
++prohibit newline characters (due to the usage of ``$`` instead of ``\Z`` in the
++regular expressions). If you use values with newlines in HTTP response or email
++headers, you can suffer from header injection attacks. Django itself isn't
++vulnerable because :class:`~django.http.HttpResponse` and the mail sending
++utilities in :mod:`django.core.mail` prohibit newlines in HTTP and SMTP
++headers, respectively. While the validators have been fixed in Django, if
++you're creating HTTP responses or email messages in other ways, it's a good
++idea to ensure that those methods prohibit newlines as well. You might also
++want to validate that any existing data in your application doesn't contain
++unexpected newlines.
++
++:func:`~django.core.validators.validate_ipv4_address`,
++:func:`~django.core.validators.validate_slug`, and
++:class:`~django.core.validators.URLValidator` and their usage
+<output_tail>
+it validates using a regular expression instead of simply casting
++the value using ``int()`` and checking if an exception was raised.
++
+ Bugfixes
+ ========
+ 
+diff --git a/docs/releases/1.8.3.txt b/docs/releases/1.8.3.txt
+index c2283048a5..5c6301274b 100644
+--- a/docs/releases/1.8.3.txt
++++ b/docs/releases/1.8.3.txt
+@@ -32,6 +32,34 @@ core sessions framework), maintainers of third-party session 
+backends should
+ check whether the same vulnerability is present in their backend and correct
+ it if so.
+ 
++Header injection possibility since validators accept newlines in input
++======================================================================
++
++Some of Django's built-in validators
++(:class:`~django.core.validators.EmailValidator`, most seriously) didn't
++prohibit newline characters (due to the usage of ``$`` instead of ``\Z`` in the
++regular expressions). If you use values with newlines in HTTP response or email
++headers, you can suffer from header injection attacks. Django itself isn't
++vulnerable because :class:`~django.http.HttpResponse` and the mail sending
++utilities in :mod:`django.core.mail` prohibit newlines in HTTP and SMTP
++headers, respectively. While the validators have been fixed in Django, if
++you're creating HTTP responses or email messages in other ways, it's a good
++idea to ensure that those methods prohibit newlines as well. You might also
++want to validate that any existing data in your application doesn't contain
++unexpected newlines.
++
++:func:`~django.core.validators.validate_ipv4_address`,
++:func:`~django.core.validators.validate_slug`, and
++:class:`~django.core.validators.URLValidator` are also affected, however, as
++of Django 1.6 the ``GenericIPAddresseField``, ``IPAddressField``, 
+``SlugField``,
++and ``URLField`` form fields which use these validators all strip the input, so
++the possibility of newlines entering your data only exists if you are using
++these validators outside of the form fields.
++
++The undocumented, internally unused ``validate_integer()`` function is now
++stricter as it validates using a regular expression instead of simply casting
++the value using ``int()`` and checking if an exception was raised.
++
+ Bugfixes
+ ========
+ 
+diff --git a/tests/validators/tests.py b/tests/validators/tests.py
+index cf0ba908c2..69aebb9ada 100644
+--- a/tests/validators/tests.py
++++ b/tests/validators/tests.py
+@@ -28,10 +28,12 @@ TEST_DATA = [
+     (validate_integer, '42', None),
+     (validate_integer, '-42', None),
+     (validate_integer, -42, None),
+-    (validate_integer, -42.5, None),
+ 
++    (validate_integer, -42.5, ValidationError),
+     (validate_integer, None, ValidationError),
+     (validate_integer, 'a', ValidationError),
++    (validate_integer, '\n42', ValidationError),
++    (validate_integer, '42\n', ValidationError),
+ 
+     (validate_email, 'email@here.com', None),
+     (validate_email, 'weirder-email@here.and.there.com', None),
+@@ -77,6 +79,11 @@ TEST_DATA = [
+     # Max length of domain name labels is 63 characters per RFC 1034.
+     (validate_email, 'a@%s.us' % ('a' * 63), None),
+     (validate_email, 'a@%s.us' % ('a' * 64), ValidationError),
++    # Trailing newlines in username or domain not allowed
++    (validate_email, 'a@b.com\n', ValidationError),
++    (validate_email, 'a\n@b.com', ValidationError),
++    (validate_email, '"test@test"\n@example.com', ValidationError),
++    (validate_email, 'a@[127.0.0.1]\n', ValidationError),
+ 
+     (validate_slug, 'slug-ok', None),
+     (validate_slug, 'longer-slug-still-ok', None),
+@@ -89,6 +96,7 @@ TEST_DATA = [
+     (validate_slug, 'some@mail.com', ValidationError),
+     (validate_slug, '你好', ValidationError),
+     (validate_slug, '\n', ValidationError),
++    (validate_slug, 'trailing-newline\n', ValidationError),
+ 
+     (validate_ipv4_address, '1.1.1.1', None),
+     (validate_ipv4_address, '255.0.0.0', None),
+@@ -98,6 +106,7 @@ TEST_DATA = [
+     (validate_ipv4_address, '25.1.1.', ValidationError),
+     (validate_ipv4_address, '25,1,1,1', ValidationError),
+     (validate_ipv4_address, '25.1 .1.1', ValidationError),
++    (validate_ipv4_address, '1.1.1.1\n', ValidationError),
+ 
+     # validate_ipv6_address uses django.utils.ipv6, which
+     # is tested in much greater detail in its own testcase
+@@ -142,6 +151,7 @@ TEST_DATA = [
+ 
+     (int_list_validator(sep='.'), '1.2.3', None),
+     (int_list_validator(sep='.'), '1,2,3', ValidationError),
++    (int_list_validator(sep='.'), '1.2.3\n', ValidationError),
+ 
+     (MaxValueValidator(10), 10, None),
+     (MaxValueValidator(10), -10, None),
+@@ -175,6 +185,9 @@ TEST_DATA = [
+     (URLValidator(EXTENDED_SCHEMES), 'git://example.com/', None),
+ 
+     (URLValidator(EXTENDED_SCHEMES), 'git://-invalid.com', ValidationError),
++    # Trailing newlines not accepted
++    (URLValidator(), 'http://www.djangoproject.com/\n', ValidationError),
++    (URLValidator(), 'http://[::ffff:192.9.5.5]\n', ValidationError),
+ 
+     (BaseValidator(True), True, None),
+     (BaseValidator(True), False, ValidationError),
+
+<elided_chars>
+2244
+<warning>
+Output too long.
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 32, $0.13):
+I will search if `validator.regex` or `ASCIIUsernameValidator.regex` is accessed
+in the tests.
+
+```
+git grep "\.regex" tests/
+```
+
+Tool:
+<returncode>
+0
+<output>
+tests/backends/base/test_operations.py:            
+self.ops.regex_lookup(lookup_type='regex')
+tests/forms_tests/field_tests/test_regexfield.py:        f.regex = '^[0-9]+$'
+tests/urlpatterns_reverse/test_localeregexdescriptor.py:            de_compiled 
+= provider.regex
+tests/urlpatterns_reverse/test_localeregexdescriptor.py:                
+de_compiled_2 = provider.regex
+tests/urlpatterns_reverse/test_localeregexdescriptor.py:            fr_compiled 
+= provider.regex
+tests/urlpatterns_reverse/test_localeregexdescriptor.py:            de_compiled 
+= provider.regex
+tests/urlpatterns_reverse/test_localeregexdescriptor.py:                
+fr_compiled = provider.regex
+tests/urlpatterns_reverse/test_localeregexdescriptor.py:            
+provider.regex
+tests/urlpatterns_reverse/test_localeregexdescriptor.py:        
+self.assertIsInstance(RegexPattern.regex, LocaleRegexDescriptor)
+tests/view_tests/tests/test_static.py:        
+self.assertEqual(static('test')[0].pattern.regex.pattern, '^test(?P<path>.*)$')
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 33, $0.14):
+I will search git log for "trailing newline".
+
+```
+git log --grep="trailing newline" -i --oneline
+```
+
+Tool:
+<returncode>
+0
+<output>
+12cefee5d8 Refs #15667 -- Prevented newlines in attrs.html widget rendering.
+3e97535907 Fixed #2161 -- handle trailing newlines in initial SQL data. Includes
+regression test. Thanks to russellm.
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 34, $0.14):
+I will search git log for `UnicodeUsernameValidator`.
+
+```
+git log --grep="UnicodeUsernameValidator" --oneline
+```
+
+Tool:
+<returncode>
+0
+<output>
+14172cf442 Fixed #28415 -- Clarified what characters 
+ASCII/UnicodeUsernameValidator accept.
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 35, $0.15):
+I will search git log for `validators`.
+
+```
+git log -n 10 --oneline django/contrib/auth/validators.py
+```
+
+Tool:
+<returncode>
+0
+<output>
+04df050ee9 SWE-bench
+c651331b34 Converted usage of ugettext* functions to their gettext* aliases
+c716fe8782 Refs #23919 -- Removed six.PY2/PY3 usage
+526575c641 Fixed #21379 -- Created auth-specific username validators
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 36, $0.16):
+I will check git branches, tags, and remotes.
+
+```
+git branch -a; git status
+```
+
+Tool:
+<returncode>
+0
+<output>
+* main
+On branch main
+nothing to commit, working tree clean
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 37, $0.17):
+I will check recent git commits.
+
+```
+git log -n 5 --oneline
+```
+
+Tool:
+<returncode>
+0
+<output>
+04df050ee9 SWE-bench
+d26b242443 Fixed #30271 -- Added the Sign database function.
+5935a9aead Removed obsolete Lookup hook to prepare rhs expressions.
+3a505c70e7 Refs #27149, #29542 -- Simplified subquery parentheses wrapping 
+logic.
+3543129822 Refs #27149 -- Moved subquery expression resolving to Query.
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 38, $0.17):
+I will check git show on 04df050ee9.
+
+```
+git show 04df050ee9
+```
+
+Tool:
+<returncode>
+0
+<output_head>
+commit 04df050ee958b843111c32aaaa362eda26b25bda
+Author: SWE-bench <setup@swebench.com>
+Date:   Sat Aug 15 06:03:09 2026 +0000
+
+    SWE-bench
+
+diff --git a/.editorconfig b/.editorconfig
+old mode 100644
+new mode 100755
+diff --git a/.eslintignore b/.eslintignore
+old mode 100644
+new mode 100755
+diff --git a/.eslintrc b/.eslintrc
+old mode 100644
+new mode 100755
+diff --git a/.gitattributes b/.gitattributes
+old mode 100644
+new mode 100755
+diff --git a/.gitignore b/.gitignore
+old mode 100644
+new mode 100755
+diff --git a/.hgignore b/.hgignore
+old mode 100644
+new mode 100755
+diff --git a/.tx/config b/.tx/config
+old mode 100644
+new mode 100755
+diff --git a/AUTHORS b/AUTHORS
+old mode 100644
+new mode 100755
+diff --git a/CONTRIBUTING.rst b/CONTRIBUTING.rst
+old mode 100644
+new mode 100755
+diff --git a/Gruntfile.js b/Gruntfile.js
+old mode 100644
+new mode 100755
+diff --git a/INSTALL b/INSTALL
+old mode 100644
+new mode 100755
+diff --git a/LICENSE b/LICENSE
+old mode 100644
+new mode 100755
+diff --git a/LICENSE.python b/LICENSE.python
+old mode 100644
+new mode 100755
+diff --git a/MANIFEST.in b/MANIFEST.in
+old mode 100644
+new mode 100755
+diff --git a/README.rst b/README.rst
+old mode 100644
+new mode 100755
+diff --git a/django/__init__.py b/django/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/django/__main__.py b/django/__main__.py
+old mode 100644
+new mode 100755
+diff --git a/django/apps/__init__.py b/django/apps/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/django/apps/config.py b/django/apps/config.py
+old mode 100644
+new mode 100755
+diff --git a/django/apps/registry.py b/django/apps/registry.py
+old mode 100644
+new mode 100755
+diff --git a/django/conf/__init__.py b/django/conf/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/django/conf/app_template/__init__.py-tpl 
+b/django/conf/app_template/__init__.py-tpl
+old mode 100644
+new mode 100755
+diff --git a/django/conf/app_template/admin.py-tpl 
+b/django/conf/app_template/admin.py-tpl
+old mode 100644
+new mode 100755
+diff --git a/django/conf/app_template/apps.py-tpl 
+b/django/conf/app_template/apps.py-tpl
+old mode 100644
+new mode 100755
+diff --git a/django/conf/app_template/migrations/__init__.py-tpl 
+b/django/conf/app_template/migrations/__init__.py-tpl
+old mode 100644
+new mode 100755
+diff --git a/django/conf/app_template/models.py-tpl 
+b/django/conf/app_template/models.py-tpl
+old mode 100644
+new mode 100755
+diff --git a/django/conf/app_template/tests.py-tpl 
+b/django/conf/app_template/tests.py-tpl
+old mode 100644
+new mode 100755
+diff --git a/django/conf/app_template/views.py-tpl 
+b/django/conf/app_template/views.py-tpl
+old mode 100644
+new mode 100755
+diff --git a/django/conf/global_settings.py b/django/conf/global_settings.py
+old mode 100644
+new mode 100755
+diff --git a/django/conf/locale/__init__.py b/django/conf/locale/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/django/conf/locale/af/LC_MESSAGES/django.mo 
+b/django/conf/locale/af/LC_MESSAGES/django.mo
+old mode 100644
+new mode 100755
+diff --git a/django/conf/locale/af/LC_MESSAGES/django.po 
+b/django/conf/locale/af/LC_MESSAGES/django.po
+old mode 100644
+new mode 100755
+diff --git a/django/conf/locale/ar/LC_MESSAGES/django.mo 
+b/django/conf/locale/ar/LC_MESSAGES/django.mo
+old mode 100644
+new mode 100755
+diff --git a/django/conf/locale/ar/LC_MESSAGES/django.po 
+b/django/conf/locale/ar/LC_MESSAGES/django.po
+old mode 100644
+new mode 100755
+diff --git a/django/conf/locale/ar/__init__.py 
+b/django/conf/locale/ar/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/django/conf/locale/ar/formats.py b/django/conf/locale/ar/formats.py
+old mode 100644
+new mode 100755
+diff --git a/django/conf/locale/ast/LC_MESSAGES/django.mo 
+b/django/conf/locale/ast/LC_MESSAGES/django.mo
+old mode 100644
+new mode 100755
+diff --git a/django/conf/locale/ast/LC_MESSAGES/django.po 
+b/django/conf/locale/ast/LC_MESSAGES/django.po
+old mode 100644
+new mode 100755
+diff --git a/django/conf/locale/az/LC_MESSAGES/django.mo 
+b/django/conf/locale/az/LC_MESSAGES/django.mo
+old mode 100644
+new mode 100755
+diff --git a/django/conf/locale/az/LC_MESSAGES/django.po 
+b/django/conf/locale/az/LC_MESSAGES/django.po
+old mode 100644
+new mode 100755
+diff --git a/django/conf/locale/az/__init__.py 
+b/django/conf/locale/az/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/django/conf/locale/az/formats.py b/django/conf/locale/az/formats.py
+old mode 100644
+new mode 100755
+diff --git a/django/conf/locale/be/LC_MESSAGES/django.mo 
+b/django/conf/locale/be/LC_MESSAGES/django.mo
+old mode 100644
+new mode 100755
+diff --git a/django/conf/locale/be/LC_MESSAGES/django.po 
+b/django/conf/locale/be/LC_MESSAGES/django.po
+old mode 100644
+new mode 100755
+diff --git a/django/conf/locale/bg/LC_MESSAGES/django.mo 
+b/django/conf/locale/bg/LC_MESSAGES/django.mo
+old mode 100644
+new mode 100755
+diff --git a/django/conf/locale/bg/LC_MESSAGES/django.po 
+b/django/conf/locale/bg/LC_MESSAGES/django.po
+old mode 100644
+new mode 100755
+diff --git a/django/conf/locale/bg/__init__.py b/django/conf
+<output_tail>
+ 100644
+new mode 100755
+diff --git a/tests/view_tests/locale/es/LC_MESSAGES/djangojs.mo 
+b/tests/view_tests/locale/es/LC_MESSAGES/djangojs.mo
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/locale/es/LC_MESSAGES/djangojs.po 
+b/tests/view_tests/locale/es/LC_MESSAGES/djangojs.po
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/locale/fr/LC_MESSAGES/djangojs.mo 
+b/tests/view_tests/locale/fr/LC_MESSAGES/djangojs.mo
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/locale/fr/LC_MESSAGES/djangojs.po 
+b/tests/view_tests/locale/fr/LC_MESSAGES/djangojs.po
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/locale/nl/LC_MESSAGES/django.mo 
+b/tests/view_tests/locale/nl/LC_MESSAGES/django.mo
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/locale/nl/LC_MESSAGES/django.po 
+b/tests/view_tests/locale/nl/LC_MESSAGES/django.po
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/locale/pt/LC_MESSAGES/djangojs.mo 
+b/tests/view_tests/locale/pt/LC_MESSAGES/djangojs.mo
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/locale/pt/LC_MESSAGES/djangojs.po 
+b/tests/view_tests/locale/pt/LC_MESSAGES/djangojs.po
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/locale/ru/LC_MESSAGES/djangojs.mo 
+b/tests/view_tests/locale/ru/LC_MESSAGES/djangojs.mo
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/locale/ru/LC_MESSAGES/djangojs.po 
+b/tests/view_tests/locale/ru/LC_MESSAGES/djangojs.po
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/media/%2F.txt b/tests/view_tests/media/%2F.txt
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/media/file.txt b/tests/view_tests/media/file.txt
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/media/file.txt.gz 
+b/tests/view_tests/media/file.txt.gz
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/media/file.unknown 
+b/tests/view_tests/media/file.unknown
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/media/long-line.txt 
+b/tests/view_tests/media/long-line.txt
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/media/subdir/.hidden 
+b/tests/view_tests/media/subdir/.hidden
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/media/subdir/visible 
+b/tests/view_tests/media/subdir/visible
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/models.py b/tests/view_tests/models.py
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/regression_21530_urls.py 
+b/tests/view_tests/regression_21530_urls.py
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/templates/debug/template_error.html 
+b/tests/view_tests/templates/debug/template_error.html
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/templates/debug/template_exception.html 
+b/tests/view_tests/templates/debug/template_exception.html
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/templates/jsi18n-multi-catalogs.html 
+b/tests/view_tests/templates/jsi18n-multi-catalogs.html
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/templates/jsi18n.html 
+b/tests/view_tests/templates/jsi18n.html
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/templatetags/__init__.py 
+b/tests/view_tests/templatetags/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/templatetags/debugtags.py 
+b/tests/view_tests/templatetags/debugtags.py
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/tests/__init__.py 
+b/tests/view_tests/tests/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/tests/test_csrf.py 
+b/tests/view_tests/tests/test_csrf.py
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/tests/test_debug.py 
+b/tests/view_tests/tests/test_debug.py
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/tests/test_defaults.py 
+b/tests/view_tests/tests/test_defaults.py
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/tests/test_i18n.py 
+b/tests/view_tests/tests/test_i18n.py
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/tests/test_json.py 
+b/tests/view_tests/tests/test_json.py
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/tests/test_specials.py 
+b/tests/view_tests/tests/test_specials.py
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/tests/test_static.py 
+b/tests/view_tests/tests/test_static.py
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/urls.py b/tests/view_tests/urls.py
+old mode 100644
+new mode 100755
+diff --git a/tests/view_tests/views.py b/tests/view_tests/views.py
+old mode 100644
+new mode 100755
+diff --git a/tests/wsgi/__init__.py b/tests/wsgi/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/tests/wsgi/tests.py b/tests/wsgi/tests.py
+old mode 100644
+new mode 100755
+diff --git a/tests/wsgi/urls.py b/tests/wsgi/urls.py
+old mode 100644
+new mode 100755
+diff --git a/tests/wsgi/wsgi.py b/tests/wsgi/wsgi.py
+old mode 100644
+new mode 100755
+diff --git a/tox.ini b/tox.ini
+old mode 100644
+new mode 100755
+
+<elided_chars>
+833505
+<warning>
+Output too long.
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 39, $0.18):
+I will search for any other tests involving `UnicodeUsernameValidator` or 
+`ASCIIUsernameValidator`.
+
+```
+git grep -n "UsernameValidator" tests/
+```
+
+Tool:
+<returncode>
+0
+<output>
+tests/auth_tests/test_validators.py:234:class 
+UsernameValidatorsTests(SimpleTestCase):
+tests/auth_tests/test_validators.py:242:        v = 
+validators.UnicodeUsernameValidator()
+tests/auth_tests/test_validators.py:254:        v = 
+validators.ASCIIUsernameValidator()
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 40, $0.19):
+I will search where `UnicodeUsernameValidator` is referenced in 
+`django/contrib/auth/models.py`.
+
+```
+git grep -n "username_validator" django/
+```
+
+Tool:
+<returncode>
+0
+<output>
+django/contrib/auth/models.py:292:    username_validator = 
+UnicodeUsernameValidator()
+django/contrib/auth/models.py:299:        validators=[username_validator],
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 41, $0.19):
+I will check lines 290-305 in `django/contrib/auth/models.py`.
+
+```
+sed -n '290,305p' django/contrib/auth/models.py
+```
+
+Tool:
+<returncode>
+0
+<output>
+    Username and password are required. Other fields are optional.
+    """
+    username_validator = UnicodeUsernameValidator()
+
+    username = models.CharField(
+        _('username'),
+        max_length=150,
+        unique=True,
+        help_text=_('Required. 150 characters or fewer. Letters, digits and 
+@/./+/-/_ only.'),
+        validators=[username_validator],
+        error_messages={
+            'unique': _("A user with that username already exists."),
+        },
+    )
+    first_name = models.CharField(_('first name'), max_length=30, blank=True)
+    last_name = models.CharField(_('last name'), max_length=150, blank=True)
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 42, $0.20):
+I will edit `django/contrib/auth/validators.py` to use `r'\A[\w.@+-]+\Z'` 
+instead of `r'^[\w.@+-]+$'`.
+
+```
+python3 -c "
+with open('django/contrib/auth/validators.py', 'r') as f:
+    content = f.read()
+
+new_content = content.replace(r\"regex = r'^[\w.@+-]+$'\", r\"regex = 
+r'\A[\w.@+-]+\Z'\")
+assert new_content != content
+assert new_content.count(r\"regex = r'\A[\w.@+-]+\Z'\") == 2
+
+with open('django/contrib/auth/validators.py', 'w') as f:
+    f.write(new_content)
+"
+```
+
+Tool:
+<returncode>
+0
+<output>
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 43, $0.21):
+I will check `git diff django/contrib/auth/validators.py`.
+
+```
+git diff django/contrib/auth/validators.py
+```
+
+Tool:
+<returncode>
+0
+<output>
+diff --git a/django/contrib/auth/validators.py 
+b/django/contrib/auth/validators.py
+index b4878cfd45..1304f20a60 100755
+--- a/django/contrib/auth/validators.py
++++ b/django/contrib/auth/validators.py
+@@ -7,7 +7,7 @@ from django.utils.translation import gettext_lazy as _
+ 
+ @deconstructible
+ class ASCIIUsernameValidator(validators.RegexValidator):
+-    regex = r'^[\w.@+-]+$'
++    regex = r'\A[\w.@+-]+\Z'
+     message = _(
+         'Enter a valid username. This value may contain only English letters, '
+         'numbers, and @/./+/-/_ characters.'
+@@ -17,7 +17,7 @@ class ASCIIUsernameValidator(validators.RegexValidator):
+ 
+ @deconstructible
+ class UnicodeUsernameValidator(validators.RegexValidator):
+-    regex = r'^[\w.@+-]+$'
++    regex = r'\A[\w.@+-]+\Z'
+     message = _(
+         'Enter a valid username. This value may contain only letters, '
+         'numbers, and @/./+/-/_ characters.'
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 44, $0.21):
+I will verify that trailing newlines are now rejected.
+
+```
+/opt/miniconda3/envs/testbed/bin/python -c "
+from django.contrib.auth import validators
+try:
+    validators.ASCIIUsernameValidator()('glenn\n')
+    print('ASCII allowed glenn\\n')
+except Exception as e:
+    print('ASCII rejected:', e)
+
+try:
+    validators.UnicodeUsernameValidator()('joe\n')
+    print('Unicode allowed joe\\n')
+except Exception as e:
+    print('Unicode rejected:', e)
+"
+```
+
+Tool:
+<returncode>
+1
+<output>
+Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+  File "/testbed/django/core/validators.py", line 60, in __call__
+    raise ValidationError(self.message, code=self.code)
+django.core.exceptions.ValidationError: <exception str() failed>
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<string>", line 7, in <module>
+  File "/testbed/django/core/exceptions.py", line 175, in __str__
+    return repr(list(self))
+  File "/testbed/django/core/exceptions.py", line 170, in __iter__
+    yield str(message)
+  File "/testbed/django/utils/functional.py", line 124, in __text_cast
+    return func(*self.__args, **self.__kw)
+  File "/testbed/django/utils/translation/__init__.py", line 91, in gettext
+    return _trans.gettext(message)
+  File "/testbed/django/utils/translation/__init__.py", line 56, in __getattr__
+    if settings.USE_I18N:
+  File "/testbed/django/conf/__init__.py", line 76, in __getattr__
+    self._setup(name)
+  File "/testbed/django/conf/__init__.py", line 61, in _setup
+    % (desc, ENVIRONMENT_VARIABLE))
+django.core.exceptions.ImproperlyConfigured: Requested setting USE_I18N, but 
+settings are not configured. You must either define the environment variable 
+DJANGO_SETTINGS_MODULE or call settings.configure() before accessing settings.
+ASCII rejected: 
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 45, $0.22):
+I will run the testbed python with settings configured.
+
+```
+/opt/miniconda3/envs/testbed/bin/python -c "
+import django
+from django.conf import settings
+settings.configure()
+django.setup()
+
+from django.contrib.auth import validators
+from django.core.exceptions import ValidationError
+
+for v in (validators.ASCIIUsernameValidator(), 
+validators.UnicodeUsernameValidator()):
+    try:
+        v('username\n')
+        print(v, 'FAILED to reject')
+    except ValidationError:
+        print(v, 'successfully rejected trailing newline')
+"
+```
+
+Tool:
+<returncode>
+0
+<output>
+<django.contrib.auth.validators.ASCIIUsernameValidator object at 0x7ffffde01710>
+successfully rejected trailing newline
+<django.contrib.auth.validators.UnicodeUsernameValidator object at 
+0x7ffffdcb5b70> successfully rejected trailing newline
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 46, $0.22):
+I will inspect `tests/auth_tests/test_validators.py` around 
+`UsernameValidatorsTests`.
+
+```
+sed -n '230,265p' tests/auth_tests/test_validators.py
+```
+
+Tool:
+<returncode>
+0
+<output>
+            "Your password can't be entirely numeric."
+        )
+
+
+class UsernameValidatorsTests(SimpleTestCase):
+    def test_unicode_validator(self):
+        valid_usernames = ['joe', 'René', 'ᴮᴵᴳᴮᴵᴿᴰ', 'أحمد']
+        invalid_usernames = [
+            "o'connell", "عبد ال",
+            "zerowidth\u200Bspace", "nonbreaking\u00A0space",
+            "en\u2013dash",
+        ]
+        v = validators.UnicodeUsernameValidator()
+        for valid in valid_usernames:
+            with self.subTest(valid=valid):
+                v(valid)
+        for invalid in invalid_usernames:
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValidationError):
+                    v(invalid)
+
+    def test_ascii_validator(self):
+        valid_usernames = ['glenn', 'GLEnN', 'jean-marc']
+        invalid_usernames = ["o'connell", 'Éric', 'jean marc', "أحمد"]
+        v = validators.ASCIIUsernameValidator()
+        for valid in valid_usernames:
+            with self.subTest(valid=valid):
+                v(valid)
+        for invalid in invalid_usernames:
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValidationError):
+                    v(invalid)
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 47, $0.23):
+I will run `auth_tests` suite.
+
+```
+/opt/miniconda3/envs/testbed/bin/python tests/runtests.py auth_tests
+```
+
+Tool:
+<returncode>
+0
+<output>
+Testing against Django installed in '/testbed/django' with up to 8 processes
+System check identified no issues (0 silenced).
+Creating test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Creating test database for alias 'other'...
+Cloning test database for alias 'other'...
+Cloning test database for alias 'other'...
+Cloning test database for alias 'other'...
+Cloning test database for alias 'other'...
+Cloning test database for alias 'other'...
+Cloning test database for alias 'other'...
+Cloning test database for alias 'other'...
+Cloning test database for alias 'other'...
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+..............
+----------------------------------------------------------------------
+Ran 494 tests in 26.749s
+
+OK
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 48, $0.24):
+I will add test cases for trailing newlines to 
+`tests/auth_tests/test_validators.py`.
+
+```
+python3 -c "
+with open('tests/auth_tests/test_validators.py', 'r') as f:
+    content = f.read()
+
+old_unicode = '''        invalid_usernames = [
+            \"o'connell\", \"عبد ال\",
+            \"zerowidth\\u200Bspace\", \"nonbreaking\\u00A0space\",
+            \"en\\u2013dash\",
+        ]'''
+
+new_unicode = '''        invalid_usernames = [
+            \"o'connell\", \"عبد ال\",
+            \"zerowidth\\u200Bspace\", \"nonbreaking\\u00A0space\",
+            \"en\\u2013dash\", \"trailing-newline\\n\",
+        ]'''
+
+old_ascii = '''        invalid_usernames = [\"o'connell\", 'Éric', 'jean marc', 
+\"أحمد\"]'''
+new_ascii = '''        invalid_usernames = [\"o'connell\", 'Éric', 'jean marc', 
+\"أحمد\", 'trailing-newline\\n']'''
+
+assert old_unicode in content
+assert old_ascii in content
+
+content = content.replace(old_unicode, new_unicode).replace(old_ascii, 
+new_ascii)
+
+with open('tests/auth_tests/test_validators.py', 'w') as f:
+    f.write(content)
+"
+```
+
+Tool:
+<returncode>
+1
+<output>
+Traceback (most recent call last):
+  File "<string>", line 20, in <module>
+AssertionError
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 49, $0.24):
+I will inspect the lines in `tests/auth_tests/test_validators.py`.
+
+```
+sed -n '235,265p' tests/auth_tests/test_validators.py
+```
+
+Tool:
+<returncode>
+0
+<output>
+    def test_unicode_validator(self):
+        valid_usernames = ['joe', 'René', 'ᴮᴵᴳᴮᴵᴿᴰ', 'أحمد']
+        invalid_usernames = [
+            "o'connell", "عبد ال",
+            "zerowidth\u200Bspace", "nonbreaking\u00A0space",
+            "en\u2013dash",
+        ]
+        v = validators.UnicodeUsernameValidator()
+        for valid in valid_usernames:
+            with self.subTest(valid=valid):
+                v(valid)
+        for invalid in invalid_usernames:
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValidationError):
+                    v(invalid)
+
+    def test_ascii_validator(self):
+        valid_usernames = ['glenn', 'GLEnN', 'jean-marc']
+        invalid_usernames = ["o'connell", 'Éric', 'jean marc', "أحمد"]
+        v = validators.ASCIIUsernameValidator()
+        for valid in valid_usernames:
+            with self.subTest(valid=valid):
+                v(valid)
+        for invalid in invalid_usernames:
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValidationError):
+                    v(invalid)
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 50, $0.25):
+I will inspect the repr of those lines.
+
+```
+python3 -c "
+with open('tests/auth_tests/test_validators.py', 'r') as f:
+    lines = f.readlines()
+print(repr(lines[237:243]))
+"
+```
+
+Tool:
+<returncode>
+0
+<output>
+['            "o\'connell", "عبد ال",\n', '            "zerowidth\\u200Bspace", 
+"nonbreaking\\u00A0space",\n', '            "en\\u2013dash",\n', '        ]\n', 
+'        v = validators.UnicodeUsernameValidator()\n', '        for valid in 
+valid_usernames:\n']
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 51, $0.26):
+I will update `tests/auth_tests/test_validators.py` with `trailing-newline\n`.
+
+```
+python3 -c "
+with open('tests/auth_tests/test_validators.py', 'r') as f:
+    lines = f.readlines()
+
+assert '\"en\\\\u2013dash\",\n' in lines[239]
+lines[239] = '            \"en\\\\u2013dash\", \"trailing-newline\\\\n\",\n'
+
+assert 'invalid_usernames = [\"o\'connell\", \'Éric\', \'jean marc\', 
+\"أحمد\"]\n' in lines[253]
+lines[253] = '        invalid_usernames = [\"o\'connell\", \'Éric\', \'jean 
+marc\', \"أحمد\", \"trailing-newline\\\\n\"]\n'
+
+with open('tests/auth_tests/test_validators.py', 'w') as f:
+    f.writelines(lines)
+"
+```
+
+Tool:
+<returncode>
+1
+<output>
+Traceback (most recent call last):
+  File "<string>", line 8, in <module>
+AssertionError
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 52, $0.26):
+I will print `lines[250:256]` of `tests/auth_tests/test_validators.py`.
+
+```
+python3 -c "
+with open('tests/auth_tests/test_validators.py', 'r') as f:
+    lines = f.readlines()
+for i in range(250, 257):
+    print(i, repr(lines[i]))
+"
+```
+
+Tool:
+<returncode>
+0
+<output>
+250 '    def test_ascii_validator(self):\n'
+251 "        valid_usernames = ['glenn', 'GLEnN', 'jean-marc']\n"
+252 '        invalid_usernames = ["o\'connell", \'Éric\', \'jean marc\', 
+"أحمد"]\n'
+253 '        v = validators.ASCIIUsernameValidator()\n'
+254 '        for valid in valid_usernames:\n'
+255 '            with self.subTest(valid=valid):\n'
+256 '                v(valid)\n'
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 53, $0.27):
+I will update `tests/auth_tests/test_validators.py` to add `trailing-newline\n` 
+to `invalid_usernames`.
+
+```
+python3 -c "
+with open('tests/auth_tests/test_validators.py', 'r') as f:
+    lines = f.readlines()
+
+assert '\"en\\\\u2013dash\",\n' in lines[239]
+lines[239] = '            \"en\\\\u2013dash\", \"trailing-newline\\\\n\",\n'
+
+assert 'invalid_usernames = [\"o\'connell\", \'Éric\', \'jean marc\', 
+\"أحمد\"]\n' in lines[252]
+lines[252] = '        invalid_usernames = [\"o\'connell\", \'Éric\', \'jean 
+marc\', \"أحمد\", \"trailing-newline\\\\n\"]\n'
+
+with open('tests/auth_tests/test_validators.py', 'w') as f:
+    f.writelines(lines)
+"
+```
+
+Tool:
+<returncode>
+0
+<output>
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 54, $0.27):
+I will inspect `git diff tests/auth_tests/test_validators.py`.
+
+```
+git diff tests/auth_tests/test_validators.py
+```
+
+Tool:
+<returncode>
+0
+<output>
+diff --git a/tests/auth_tests/test_validators.py 
+b/tests/auth_tests/test_validators.py
+index 1c2c6b4aff..3c6c24b63c 100755
+--- a/tests/auth_tests/test_validators.py
++++ b/tests/auth_tests/test_validators.py
+@@ -237,7 +237,7 @@ class UsernameValidatorsTests(SimpleTestCase):
+         invalid_usernames = [
+             "o'connell", "عبد ال",
+             "zerowidth\u200Bspace", "nonbreaking\u00A0space",
+-            "en\u2013dash",
++            "en\u2013dash", "trailing-newline\n",
+         ]
+         v = validators.UnicodeUsernameValidator()
+         for valid in valid_usernames:
+@@ -250,7 +250,7 @@ class UsernameValidatorsTests(SimpleTestCase):
+ 
+     def test_ascii_validator(self):
+         valid_usernames = ['glenn', 'GLEnN', 'jean-marc']
+-        invalid_usernames = ["o'connell", 'Éric', 'jean marc', "أحمد"]
++        invalid_usernames = ["o'connell", 'Éric', 'jean marc', "أحمد", 
+"trailing-newline\n"]
+         v = validators.ASCIIUsernameValidator()
+         for valid in valid_usernames:
+             with self.subTest(valid=valid):
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 55, $0.28):
+I will run the tests in `auth_tests.test_validators`.
+
+```
+/opt/miniconda3/envs/testbed/bin/python tests/runtests.py 
+auth_tests.test_validators
+```
+
+Tool:
+<returncode>
+0
+<output>
+Testing against Django installed in '/testbed/django' with up to 8 processes
+System check identified no issues (0 silenced).
+Creating test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+......................
+----------------------------------------------------------------------
+Ran 22 tests in 0.238s
+
+OK
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 56, $0.29):
+I will run a script testing various edge cases against both validators.
+
+```
+/opt/miniconda3/envs/testbed/bin/python -c "
+import django
+from django.conf import settings
+settings.configure()
+django.setup()
+
+from django.contrib.auth.validators import ASCIIUsernameValidator, 
+UnicodeUsernameValidator
+from django.core.exceptions import ValidationError
+
+ascii_val = ASCIIUsernameValidator()
+unicode_val = UnicodeUsernameValidator()
+
+valid_ascii = ['glenn', 'GLEnN', 'jean-marc', 'user@domain.com', 'user+name', 
+'user.name', '_underscore_', '1234']
+valid_unicode = valid_ascii + ['René', 'ᴮᴵᴳᴮᴵᴿᴰ', 'أحمد', 'ユーザー']
+
+invalid = [
+    'user\n', '\nuser', 'user\nname', 'user\r\n', 'user\r', '\n', '\r',
+    'user ', ' user', 'user name', 'user\t', '\tuser',
+    '', 'user#name', 'user$name', 'user%name', 'user/name'
+]
+
+for val in (ascii_val, unicode_val):
+    for u in valid_ascii if val is ascii_val else valid_unicode:
+        try:
+            val(u)
+        except ValidationError:
+            print(f'{val.__class__.__name__} unexpectedly failed for valid 
+input: {repr(u)}')
+
+    for u in invalid:
+        try:
+            val(u)
+            print(f'{val.__class__.__name__} unexpectedly passed for invalid 
+input: {repr(u)}')
+        except ValidationError:
+            pass
+
+print('All edge cases tested!')
+"
+```
+
+Tool:
+<returncode>
+0
+<output>
+ASCIIUsernameValidator unexpectedly passed for invalid input: 'user'
+UnicodeUsernameValidator unexpectedly passed for invalid input: 'user'
+All edge cases tested!
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 57, $0.30):
+I will test edge cases using EOF heredoc to avoid shell escape issues.
+
+```
+/opt/miniconda3/envs/testbed/bin/python << 'EOF'
+import django
+from django.conf import settings
+settings.configure()
+django.setup()
+
+from django.contrib.auth.validators import ASCIIUsernameValidator, 
+UnicodeUsernameValidator
+from django.core.exceptions import ValidationError
+
+ascii_val = ASCIIUsernameValidator()
+unicode_val = UnicodeUsernameValidator()
+
+valid_ascii = ['glenn', 'GLEnN', 'jean-marc', 'user@domain.com', 'user+name', 
+'user.name', '_underscore_', '1234']
+valid_unicode = valid_ascii + ['René', 'ᴮᴵᴳᴮᴵᴿᴰ', 'أحمد', 'ユーザー']
+
+invalid = [
+    'user\n', '\nuser', 'user\nname', 'user\r\n', 'user\r', '\n', '\r',
+    'user ', ' user', 'user name', 'user\t', '\tuser',
+    '', 'user#name', 'user$name', 'user%name', 'user/name'
+]
+
+failed = False
+for val in (ascii_val, unicode_val):
+    for u in valid_ascii if val is ascii_val else valid_unicode:
+        try:
+            val(u)
+        except ValidationError:
+            print(f'{val.__class__.__name__} unexpectedly failed for valid 
+input: {repr(u)}')
+            failed = True
+
+    for u in invalid:
+        try:
+            val(u)
+            print(f'{val.__class__.__name__} unexpectedly passed for invalid 
+input: {repr(u)}')
+            failed = True
+        except ValidationError:
+            pass
+
+if not failed:
+    print('All edge cases passed!')
+EOF
+```
+
+Tool:
+<returncode>
+0
+<output>
+All edge cases passed!
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 58, $0.30):
+I will check the git status and diff.
+
+```
+git status
+```
+
+Tool:
+<returncode>
+0
+<output>
+On branch main
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+        modified:   django/contrib/auth/validators.py
+        modified:   tests/auth_tests/test_validators.py
+
+no changes added to commit (use "git add" and/or "git commit -a")
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 59, $0.31):
+I will display the full git diff.
+
+```
+git diff
+```
+
+Tool:
+<returncode>
+0
+<output>
+diff --git a/django/contrib/auth/validators.py 
+b/django/contrib/auth/validators.py
+index b4878cfd45..1304f20a60 100755
+--- a/django/contrib/auth/validators.py
++++ b/django/contrib/auth/validators.py
+@@ -7,7 +7,7 @@ from django.utils.translation import gettext_lazy as _
+ 
+ @deconstructible
+ class ASCIIUsernameValidator(validators.RegexValidator):
+-    regex = r'^[\w.@+-]+$'
++    regex = r'\A[\w.@+-]+\Z'
+     message = _(
+         'Enter a valid username. This value may contain only English letters, '
+         'numbers, and @/./+/-/_ characters.'
+@@ -17,7 +17,7 @@ class ASCIIUsernameValidator(validators.RegexValidator):
+ 
+ @deconstructible
+ class UnicodeUsernameValidator(validators.RegexValidator):
+-    regex = r'^[\w.@+-]+$'
++    regex = r'\A[\w.@+-]+\Z'
+     message = _(
+         'Enter a valid username. This value may contain only letters, '
+         'numbers, and @/./+/-/_ characters.'
+diff --git a/tests/auth_tests/test_validators.py 
+b/tests/auth_tests/test_validators.py
+index 1c2c6b4aff..3c6c24b63c 100755
+--- a/tests/auth_tests/test_validators.py
++++ b/tests/auth_tests/test_validators.py
+@@ -237,7 +237,7 @@ class UsernameValidatorsTests(SimpleTestCase):
+         invalid_usernames = [
+             "o'connell", "عبد ال",
+             "zerowidth\u200Bspace", "nonbreaking\u00A0space",
+-            "en\u2013dash",
++            "en\u2013dash", "trailing-newline\n",
+         ]
+         v = validators.UnicodeUsernameValidator()
+         for valid in valid_usernames:
+@@ -250,7 +250,7 @@ class UsernameValidatorsTests(SimpleTestCase):
+ 
+     def test_ascii_validator(self):
+         valid_usernames = ['glenn', 'GLEnN', 'jean-marc']
+-        invalid_usernames = ["o'connell", 'Éric', 'jean marc', "أحمد"]
++        invalid_usernames = ["o'connell", 'Éric', 'jean marc', "أحمد", 
+"trailing-newline\n"]
+         v = validators.ASCIIUsernameValidator()
+         for valid in valid_usernames:
+             with self.subTest(valid=valid):
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 60, $0.31):
+I will run tests for `auth_tests` and `validators`.
+
+```
+/opt/miniconda3/envs/testbed/bin/python tests/runtests.py auth_tests validators
+```
+
+Tool:
+<returncode>
+0
+<output>
+Testing against Django installed in '/testbed/django' with up to 8 processes
+System check identified no issues (0 silenced).
+Creating test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Cloning test database for alias 'default'...
+Creating test database for alias 'other'...
+Cloning test database for alias 'other'...
+Cloning test database for alias 'other'...
+Cloning test database for alias 'other'...
+Cloning test database for alias 'other'...
+Cloning test database for alias 'other'...
+Cloning test database for alias 'other'...
+Cloning test database for alias 'other'...
+Cloning test database for alias 'other'...
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+............................
+----------------------------------------------------------------------
+Ran 508 tests in 19.230s
+
+OK
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+Destroying test database for alias 'other'...
+
+────────────────────────────────────────────────────────────────────────────────
+
+mini-swe-agent (step 61, $0.32):
+I will now submit the final output to complete the task.
+
+```
+echo COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT
+```
+
+Tool:
+<returncode>
+-1
+<output>
+
+<exception_info>
+action was not executed
+
+Exit:
+
+Saved trajectory to '/logs/agent/mini-swe-agent.trajectory.json'

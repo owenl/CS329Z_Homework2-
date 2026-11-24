@@ -1,0 +1,3 @@
+Evidence card EV-500
+Category: sleep
+Finding: Long naps (>60 min) are associated with higher all-cause mortality and cardiovascular events in meta-analyses; short naps are not.

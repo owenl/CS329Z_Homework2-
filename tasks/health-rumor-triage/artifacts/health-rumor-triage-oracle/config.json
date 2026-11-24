@@ -1,0 +1,10 @@
+{
+    "job_name": "health-rumor-triage-oracle",
+    "jobs_dir": "tasks/health-rumor-triage/artifacts",
+    "n_concurrent_trials": 1,
+    "tasks": [
+        {
+            "path": "tasks/health-rumor-triage"
+        }
+    ]
+}

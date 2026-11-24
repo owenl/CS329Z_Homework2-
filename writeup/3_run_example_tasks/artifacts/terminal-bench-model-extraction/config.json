@@ -1,0 +1,16 @@
+{
+    "job_name": "terminal-bench-model-extraction",
+    "jobs_dir": "writeup/3_run_example_tasks/artifacts",
+    "n_concurrent_trials": 1,
+    "agents": [
+        {
+            "import_path": "pinned_agent:MiniSweAgent",
+            "model_name": "gemini/gemini-3.8-flash"
+        }
+    ],
+    "tasks": [
+        {
+            "path": "tasks/model-extraction-relu-logits"
+        }
+    ]
+}

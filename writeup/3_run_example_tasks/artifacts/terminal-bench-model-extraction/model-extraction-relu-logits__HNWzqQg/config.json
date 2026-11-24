@@ -1,0 +1,12 @@
+{
+    "task": {
+        "path": "tasks/model-extraction-relu-logits"
+    },
+    "trial_name": "model-extraction-relu-logits__HNWzqQg",
+    "trials_dir": "writeup/3_run_example_tasks/artifacts/terminal-bench-model-extraction",
+    "agent": {
+        "import_path": "pinned_agent:MiniSweAgent",
+        "model_name": "gemini/gemini-3.8-flash"
+    },
+    "job_id": "73a46ed4-94bf-4e88-950c-6d2e8c5c5e5a"
+}

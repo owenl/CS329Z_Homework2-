@@ -1,0 +1,8 @@
+{
+    "task": {
+        "path": "tasks/health-rumor-triage"
+    },
+    "trial_name": "health-rumor-triage__uYSfm8V",
+    "trials_dir": "tasks/health-rumor-triage/artifacts/health-rumor-triage-oracle",
+    "job_id": "5fd2cea1-dc59-4db3-94d3-eaf128be86c7"
+}

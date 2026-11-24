@@ -1,0 +1,17 @@
+{
+    "job_name": "health-rumor-triage-gemini",
+    "jobs_dir": "tasks/health-rumor-triage/artifacts",
+    "n_attempts": 5,
+    "n_concurrent_trials": 1,
+    "agents": [
+        {
+            "import_path": "pinned_agent:MiniSweAgent",
+            "model_name": "gemini/gemini-3.8-flash"
+        }
+    ],
+    "tasks": [
+        {
+            "path": "tasks/health-rumor-triage"
+        }
+    ]
+}
