@@ -1,40 +1,47 @@
 {
     "id": "306ef285-eb21-4be1-a762-39b5f32fb2af",
     "started_at": "2026-11-23T23:30:34.117590",
-    "updated_at": "2026-11-24T07:41:26.942690Z",
-    "finished_at": null,
+    "updated_at": "2026-11-24T00:00:25.958817",
+    "finished_at": "2026-11-24T00:00:25.958817",
     "n_total_trials": 5,
     "stats": {
-        "n_completed_trials": 2,
+        "n_completed_trials": 5,
         "n_errored_trials": 0,
-        "n_running_trials": 1,
-        "n_pending_trials": 2,
+        "n_running_trials": 0,
+        "n_pending_trials": 0,
         "n_cancelled_trials": 0,
         "n_retries": 0,
         "evals": {
             "mini-swe-agent__gemini-3.8-flash__adhoc": {
-                "n_trials": 2,
+                "n_trials": 5,
                 "n_errors": 0,
                 "metrics": [
                     {
                         "mean": 1.0
                     }
                 ],
-                "pass_at_k": {},
+                "pass_at_k": {
+                    "2": 1.0,
+                    "4": 1.0,
+                    "5": 1.0
+                },
                 "reward_stats": {
                     "reward": {
                         "1.0": [
                             "health-rumor-triage__N52zaBA",
-                            "health-rumor-triage__yahg52K"
+                            "health-rumor-triage__yahg52K",
+                            "health-rumor-triage__ZBokvk8",
+                            "health-rumor-triage__odqkDZ3",
+                            "health-rumor-triage__KsRSwnc"
                         ]
                     }
                 },
                 "exception_stats": {}
             }
         },
-        "n_input_tokens": 638684,
-        "n_cache_tokens": 511370,
-        "n_output_tokens": 53468,
-        "cost_usd": 0.3343432500000001
+        "n_input_tokens": 2474886,
+        "n_cache_tokens": 2078500,
+        "n_output_tokens": 142032,
+        "cost_usd": 0.9857970000000003
     }
 }
